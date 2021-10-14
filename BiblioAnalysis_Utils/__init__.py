@@ -9,10 +9,11 @@ from .BiblioFilter import *
 from .BiblioGeneralGlobals import *
 from .BiblioGlobals import *
 from .BiblioGraphPlot import *
+from .BiblioGUI import *
+from .BiblioNLTK import *
 from .BiblioParsingScopus import *
 from .BiblioParsingWos import *
 from .BiblioParsingUtils import *
 from .BiblioParsingGlobals import *
 from .BiblioRefs import *
 from .BiblioTempDev import *
-from .GUI_utils import *

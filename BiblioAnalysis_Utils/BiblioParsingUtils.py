@@ -47,8 +47,11 @@ def build_title_keywords(df):
     import operator
     
     # 3rd party imports
-    import nltk
+    #import nltk
     import numpy as np
+    
+    # Local imports
+    import BiblioNLTK as bau_nltk
     
     def tokenizer(text):
         
@@ -66,11 +69,11 @@ def build_title_keywords(df):
             The list valid_words_lemmatized 
         '''
             
-        tokenized = nltk.word_tokenize(text.lower())
-        valid_words = [word for (word, pos) in nltk.pos_tag(tokenized) 
+        tokenized = bau_nltk.word_tokenize(text.lower())
+        valid_words = [word for (word, pos) in bau_nltk.pos_tag(tokenized) 
                        if pos in NLTK_VALID_TAG_LIST] 
 
-        stemmer = nltk.stem.WordNetLemmatizer()
+        stemmer = bau_nltk.stem.WordNetLemmatizer()
         valid_words_lemmatized = [stemmer.lemmatize(valid_word) for valid_word in valid_words]
     
         return valid_words_lemmatized
