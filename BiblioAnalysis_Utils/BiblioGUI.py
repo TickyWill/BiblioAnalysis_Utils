@@ -1,5 +1,4 @@
-__all__ = ['select_data_dir',
-           'item_selection',
+__all__ = ['item_selection',
            'cooc_selection',
            'merge_database_gui',
            'filters_selection',
@@ -128,51 +127,6 @@ DEFAULT_SAVE_CONFIG_FILTER = {'description': 'items to be combined in union or i
  'AK': {'description': 'Selected authors keywords',
   'mode': False,
   'list': []}}
-
-GEOMETRY_SELECT_DIR = "750x250"
- 
-def select_data_dir(root,title="Select folder") :
- 
-    '''
-    Selection of a folder
-   
-    Args:
-        root (Path): initial folder.
-        title (str): title specifying which kind of folder to be selected.
-    Returns:
-       (str): selected folder.
- 
-    '''
-   
-    # Standard library imports
-    import tkinter as tk
-    from tkinter import ttk
-    from tkinter import filedialog
-   
-    global in_dir
-   
-    win= tk.Tk()
-    win.geometry(GEOMETRY_SELECT_DIR )
-    win.title('')
-    
-    frame = LabelFrame(
-                       win,
-                       text=title,
-                       bg='#f0f0f0',
-                       font=(30)
-                       )
-    frame.pack(expand=True, fill=BOTH)
-    
-    def select_file():
-        global in_dir
-        in_dir= filedialog.askdirectory(initialdir=str(root), title=title)
-        tk.Label(win, text=in_dir, font=13).pack()
-   
-    tk.Label(win, text="Click the Button to Select a Folder", font=('Aerial 18 bold')).pack(pady=20)
-    button= ttk.Button(win, text="Select", command= select_file)
-    button.pack(ipadx=5, pady=15)
-    win.mainloop()
-    return in_dir
 
 def item_selection() :
     
@@ -500,7 +454,6 @@ def select_item_attributes(dg,item_tag,config_filter):
         list (list): list of selected items without duplicate
         
     """
-    # Standard library imports
     import collections
     import os
     import re
@@ -558,10 +511,7 @@ def select_item_attributes(dg,item_tag,config_filter):
     return val
     
 def function_help():
-    
-    # Standard library imports
     import tkinter as tk
-    
     top = tk.Toplevel()
     top.geometry(GEOMETRY_FILTERS_SELECTION)
     top.attributes("-topmost", True)
@@ -591,9 +541,9 @@ def filters_selection(filters_filename, save_filename, parsing_dir) :
     import json
     import os
     import tkinter as tk
-    from pathlib import Path
     from tkinter import ttk
     from tkinter import messagebox
+    from pathlib import Path
     
     global ITEM_CHOICE, minimum_size_node,val, number_of_call
     number_of_call = 0
@@ -869,8 +819,6 @@ def Select_multi_items(list_item,mode = 'multiple'):
         val (list): list of selected items without duplicate
         
     """
-    
-    # Standard library imports
     import os
     import tkinter as tk
     

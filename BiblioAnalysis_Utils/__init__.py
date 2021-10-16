@@ -9,8 +9,8 @@ from .BiblioFilter import *
 from .BiblioGeneralGlobals import *
 from .BiblioGlobals import *
 from .BiblioGraphPlot import *
-from .BiblioGUI import *
-from .BiblioNLTK import *
+from .BiblioGui import *
+from .BiblioNltk import *
 from .BiblioParsingScopus import *
 from .BiblioParsingWos import *
 from .BiblioParsingUtils import *

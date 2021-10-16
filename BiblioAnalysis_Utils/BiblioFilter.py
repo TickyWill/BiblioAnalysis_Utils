@@ -1,6 +1,6 @@
 __all__ = ['filter_corpus_new','read_config_filters','item_filter_modification','item_values_list','filters_modification']
 
-from .BiblioGUI import Select_multi_items
+from .BiblioGui import Select_multi_items
 
 def read_config_filters(file_config):
     """

@@ -215,6 +215,7 @@ def build_keywords_wos(df_corpus=None,dic_failed=None):
     import re
     
     # 3rd party imports
+    import nltk
     import pandas as pd
 
     key_word = namedtuple('key_word',['pub_id','type','keyword'] )
