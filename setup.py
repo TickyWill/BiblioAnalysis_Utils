@@ -13,7 +13,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 # This setup is suitable for "python setup.py develop".
 
 setup(name='BiblioAnalysis_Utils',
-      version='1.0.2',
+      version='1.0.3',
       description='A toolbox for bibliographic analysis',
       long_description=long_description,
       long_description_content_type='text/markdown',
