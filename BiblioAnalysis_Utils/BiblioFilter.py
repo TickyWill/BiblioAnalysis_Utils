@@ -1,6 +1,11 @@
-__all__ = ['filter_corpus_new','read_config_filters','item_filter_modification','item_values_list','filters_modification']
+__all__ = ['filter_corpus_new',
+           'filters_modification',
+           'item_filter_modification',
+           'item_values_list',
+           'read_config_filters',]
 
-from .BiblioGui import Select_multi_items
+# Functions used from .BiblioGui: Select_multi_items, filter_item_selection
+
 
 def read_config_filters(file_config):
     """
@@ -19,8 +24,6 @@ def read_config_filters(file_config):
 
     filter_param = defaultdict(list)
 
-
-
     with open(file_config, "r") as read_file:
             config_filter = json.load(read_file)
 
@@ -34,7 +37,7 @@ def read_config_filters(file_config):
 
     return combine,exclusion,filter_param
 
-def save_filtered_files(tokeep,in_dir,out_dir):
+def _save_filtered_files(tokeep,in_dir,out_dir):
     
     '''Filters all the files with ".dat" extension located in the folder in_dir #<---------------------
     and saves the filtered files in the folder out_dir_.   #<---------------------
@@ -52,7 +55,7 @@ def save_filtered_files(tokeep,in_dir,out_dir):
     # 3rd party imports
     import pandas as pd
 
-    tokeep =[str(x) for x in tokeep]
+    #tokeep =[str(x) for x in tokeep] ! not clear, to be understood (generate empty filtered corpus)
 
     for file in [file  for file in os.listdir(in_dir)
                  if file.endswith('.dat')]:
@@ -65,7 +68,7 @@ def save_filtered_files(tokeep,in_dir,out_dir):
                                              header=None,
                                              sep="\t")
 
-def filter_pub_id(combine,exclusion,filter_param,in_dir):
+def _filter_pub_id(combine,exclusion,filter_param,in_dir):
 
     '''<--------------------- modifié AC
     This function finds the set of the identifiers (pub_id) of the publications
@@ -86,13 +89,12 @@ def filter_pub_id(combine,exclusion,filter_param,in_dir):
     '''
 
     # Standard library imports
-    import os as os
-    from pathlib import Path
+    import os
     import re
-    
+    from pathlib import Path
+
     # 3rd party imports
     import pandas as pd
-
 
     filter_on = list(filter_param.keys())
 
@@ -246,31 +248,30 @@ def filter_corpus_new(in_dir, out_dir, verbose, file_config_filters):
     combine,exclusion,filter_param = read_config_filters(file_config_filters)
     
     # Builds the set of articles id to keep
-    #tokeep = filter_pub_id(combine,exclusion,filter_param,out_dir_parsing)
-    tokeep = filter_pub_id(combine,exclusion,filter_param,in_dir)
+    tokeep = _filter_pub_id(combine,exclusion,filter_param,in_dir)
     
     # Stores the filtered files 
-    #save_filtered_files(tokeep,in_dir_parsing,out_dir)
-    save_filtered_files(tokeep,in_dir,out_dir)
+    _save_filtered_files(tokeep,in_dir,out_dir)
     
-def item_filter_modification(item,item_values_list, filters_filename) :
+def item_filter_modification(item,item_values, filters_filename) :
     '''
     Modification of items values list in the json file of the filtering configuration
     for corpus filtering 
     
-    Arguments: 
+    Args: 
         item (str): item accronyme
-        item_values_list (list): list of item values to be put in the json file 
+        item_values (list): list of item values to be put in the json file 
         filters_filename (path): path of the json file 
         
     '''
+    
     # Standard library imports
     import json
 
     with open(filters_filename, "r") as read_file:
         config_filter = json.load(read_file)
     
-    config_filter[item]['list'] = item_values_list
+    config_filter[item]['list'] = item_values
     
     with open(filters_filename, "w") as write_file:
         jsonString = json.dumps(config_filter, indent=4)
@@ -288,11 +289,14 @@ def item_values_list(item_values_file):
         item_values_select (list): list of item values
     '''
 
+    # Standard library imports
     import csv
+    
     item_values = []
     with open(item_values_file, newline='') as f:
         reader = csv.reader(f)
         item_values = list(reader)
+        
     item_values_select =[]
     for x in range(len(item_values)):
         mystring = str(item_values[x])
@@ -300,6 +304,7 @@ def item_values_list(item_values_file):
         end = mystring.find(',', start) - 1
         value = str(mystring[start:end]).replace("'",'"')
         item_values_select.append(value)
+        
     return item_values_select
 
 def filters_modification(config_folder,file_config_filters):
@@ -314,17 +319,17 @@ def filters_modification(config_folder,file_config_filters):
         file_config_filters (path): path of the json filters configuration file
     
     '''
+    
     # Standard library imports
-    import sys
     import os
-    import json
     from pathlib import Path
-
+    
     # Local imports
-    import BiblioAnalysis_Utils as bau
+    from .BiblioGui import Select_multi_items
+    from .BiblioGui import filter_item_selection
 
     # Identifying the item to be modified in the filters configuration
-    filter_item = bau.filter_item_selection()
+    filter_item = filter_item_selection()
 
     # Setting the folders list for item_values selection list
     folders_list = [x[0] for x in os.walk(config_folder)][1:]
@@ -333,18 +338,18 @@ def filters_modification(config_folder,file_config_filters):
 
     # Selection of the folder of the item_values selection files
     print('Please select the folder of item_values selection file via the tk window')
-    myfolder_name = bau.Select_multi_items(folders_list,'single')[0]+'/'
+    myfolder_name = Select_multi_items(folders_list,'single')[0]+'/'
     myfolder = config_folder / Path(myfolder_name)
 
     # Setting the list of item_values selection files to be put in the filters configuration file
     files_list = os.listdir(myfolder)
     files_list.sort()
     print('\nPlease select the item_values selection file via the tk window')
-    myfile = bau.Select_multi_items(files_list,'single')[0]+'/'
+    myfile = Select_multi_items(files_list,'single')[0]+'/'
 
     item_values_file = myfolder / Path(myfile)
-    item_values_list_select = bau.item_values_list(item_values_file) 
+    item_values_list_select = item_values_list(item_values_file) 
 
-    bau.item_filter_modification(filter_item,item_values_list_select, file_config_filters)
+    item_filter_modification(filter_item,item_values_list_select, file_config_filters)
 
 
