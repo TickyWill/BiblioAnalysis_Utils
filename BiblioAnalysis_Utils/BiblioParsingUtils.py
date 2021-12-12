@@ -1,10 +1,15 @@
-__all__ = ['build_title_keywords','country_normalization',
-           'merge_database','name_normalizer',
-          'biblio_parser']
+__all__ = ['biblio_parser',
+           'build_title_keywords',
+           'check_and_drop_columns',
+           'country_normalization',
+           'merge_database',
+           'name_normalizer',
+           'upgrade_col_names',
+           ]
 
-# Globals used from .BiblioGeneralGlobals: ALIAS_UK, COUNTRIES, CHANGE
+# Globals used from .BiblioGeneralGlobals: ALIAS_UK, CHANGE, COUNTRIES,
 # Globals used from .BiblioSpecificGlobals: BLACKLISTED_WORDS, INST_FILTER_DIC, 
-#                                   NLTK_VALID_TAG_LIST, NOUN_MINIMUM_OCCURRENCES
+#                                           NLTK_VALID_TAG_LIST, NOUN_MINIMUM_OCCURRENCES
 
 
 def build_title_keywords(df):
@@ -29,7 +34,7 @@ def build_title_keywords(df):
        4- Suppress words pertening to BLACKLISTED_WORDS to the list  from the bag of words
     
     Args:
-       df (dataframe): pub_id | Title
+       df (dataframe): pub_id | Title 
        
     Returns:
        df (dataframe): pub_id | title_token | kept_tokens where title_token is the list of token of the title
@@ -74,8 +79,7 @@ def build_title_keywords(df):
         stemmer = nltk.stem.WordNetLemmatizer()
         valid_words_lemmatized = [stemmer.lemmatize(valid_word) for valid_word in valid_words]
     
-        return valid_words_lemmatized
-        
+        return valid_words_lemmatized        
 
     df['title_token'] = df['Title'].apply(tokenizer)
 
@@ -240,3 +244,91 @@ def biblio_parser(in_dir_parsing, out_dir_parsing, database, expert, rep_utils, 
         biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter_dic)
     else:
         raise Exception("Sorry, unrecognized database {database} : should be wos or scopus ")
+
+def check_and_drop_columns(database,df,filename):
+
+    from .BiblioSpecificGlobals import COLUMN_LABEL_WOS 
+    from .BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS     
+
+    # Check for missing mandatory columns
+    if database == 'wos':
+        cols_mandatory = set([val for val in COLUMN_LABEL_WOS.values() if val])
+    elif database == 'scopus':
+        cols_mandatory = set([val for val in COLUMN_LABEL_SCOPUS.values() if val])    
+    else:
+        raise Exception(f'Unknown database {database}')
+        
+    cols_available = set(df.columns)
+    missing_columns = cols_mandatory.difference(cols_available)
+    if missing_columns:
+        raise Exception(f'The mandarory columns: {",".join(missing_columns)} are missing from {filename}\nplease correct before proceeding')
+    
+    # Columns selection and dataframe reformatting
+    cols_to_drop = list(cols_available.difference(cols_mandatory))
+    df.drop(cols_to_drop,
+            axis=1,
+            inplace=True)                    # Drops unused columns
+    df.index = range(len(df))                # Sets the pub_id in df index
+    
+    return df
+
+                    
+def upgrade_col_names(corpus_folder):
+    
+    '''Add names to the colummn of the parsing and filter_<i> files to take into account the
+    upgrage of BiblioAnalysis_Utils.
+    
+    Args:
+        corpus_folder (str): folder of the corpus to be adapted
+    '''
+    # Standard library imports
+    import os
+    
+    # 3rd party imports
+    import colorama
+    import pandas as pd
+    from colorama import Back
+    from colorama import Fore
+    from colorama import Style
+    from pandas.core.groupby.groupby import DataError
+    
+    # Local imports
+    from .BiblioSpecificGlobals import COL_NAMES
+    
+    # Beware: the new file authorsinst.dat is not present in the old parsing folders
+    dict_filename_conversion  = {'addresses.dat':'address',
+                                'articles.dat': 'articles',
+                                'authors.dat':'authors',
+                                'authorsinst.dat':'auth_inst',
+                                'authorskeywords.dat':'keywords',
+                                'countries.dat':'country',
+                                'institutions.dat':'institution',
+                                'journalkeywords.dat':'keywords',
+                                'references.dat':'references',
+                                'subjects.dat': 'subject',
+                                'subjects2.dat':'sub_subject',
+                                'titlekeywords.dat':'keywords'}
+
+    for dirpath, dirs, files in os.walk(corpus_folder):  
+        if ('parsing' in   dirpath) |  ('filter_' in  dirpath):
+            for file in  [file for file in files
+                          if (file.split('.')[1]=='dat') 
+                          and (file!='database.dat')      # Not used this file is no longer generated
+                          and (file!='keywords.dat') ]:   # Not used this file is no longer generated
+                try:
+                    df = pd.read_csv(os.path.join(dirpath,file),sep='\t',header=None)
+                    
+                    if df.loc[0].tolist() == COL_NAMES[dict_filename_conversion[file]]:
+                        print(f'The file {os.path.join(dirpath,file)} is up to date')
+                    else:
+                        df.columns = COL_NAMES[dict_filename_conversion[file]]
+                        df.to_csv(os.path.join(dirpath,file),sep='\t',index=False)
+                        print(Fore.GREEN + f'*** The file {os.path.join(dirpath,file)} has been upgraded ***' + Style.RESET_ALL)
+                except  pd.errors.EmptyDataError:
+                    df = pd.DataFrame(columns=COL_NAMES[dict_filename_conversion[file]])
+                    df.to_csv(os.path.join(dirpath,file),sep='\t',index=False)
+                    print(Fore.BLUE + f'*** The EMPTY file {os.path.join(dirpath,file)} has been upgraded ***' + Style.RESET_ALL)
+                except:
+                    print(Fore.WHITE + Back.RED + f'Warning: File {os.path.join(dirpath,file)} not recognized as a parsing file' + Style.RESET_ALL)
+
+                

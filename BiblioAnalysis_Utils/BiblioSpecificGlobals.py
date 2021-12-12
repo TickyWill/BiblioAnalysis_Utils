@@ -4,6 +4,9 @@
 '''
 
 __all__ = ['BLACKLISTED_WORDS',
+           'COL_NAMES',
+           'COLUMN_LABEL_SCOPUS',
+           'COLUMN_LABEL_WOS',
            'COOC_AUTHORIZED_ITEMS',
            'COOC_AUTHORIZED_ITEMS_DICT',
            'COOC_COLOR_NODES',
@@ -20,6 +23,10 @@ __all__ = ['BLACKLISTED_WORDS',
            'ENCODING',
            'FIELD_SIZE_LIMIT',
            'FOLDER_NAMES',
+           'FOLDER_SELECTION_HELP_TEXT',
+           'GUI_BUTTON_RATIO',
+           'GUI_TEXT_MAX_LINES_NB',
+           'GUI_WIDGET_RATIO',
            'HEADER',
            'INST_FILTER_DIC',
            'LABEL_MEANING',
@@ -41,6 +48,89 @@ __all__ = ['BLACKLISTED_WORDS',
 #####################
 
 BLACKLISTED_WORDS = [] #['null','nan'] for title keywords
+
+pub_id = 'Pub_id'
+
+COL_NAMES = {   'address':      [pub_id,
+                                 'Idx_address',
+                                 'Address'],
+                'articles':     [pub_id,
+                                 'Authors',
+                                 'Year',
+                                 'Journal',
+                                 'Volume',
+                                 'Page',
+                                 'DOI',
+                                 'Document_type',
+                                 'Language',
+                                 'Title',
+                                 'ISSN'],
+                'authors':      [pub_id,
+                                 'Idx_author',
+                                 'Co_author'],  
+                'auth_inst':    [pub_id,
+                                 'Idx_author',
+                                 'Address',
+                                 'Country',
+                                 'Institution',
+                                 'Secondary_institutions'], 
+                'country':      [pub_id,
+                                 'Idx_address',
+                                 'Country'],
+                'institution':  [pub_id,
+                                 'Idx_address',
+                                 'Institution'],                             
+                'keywords':     [pub_id,
+                                 'Keyword'],                             
+                'references':   [pub_id,
+                                 'Author',
+                                 'Year',                             
+                                 'Journal',
+                                 'Volume',
+                                 'Page'],
+                'subject':      [pub_id,
+                                 'Subject'],
+                'sub_subject':  [pub_id,
+                                 'Sub_subject']
+            }                   
+            
+COLUMN_LABEL_SCOPUS = {'affiliations': 'Affiliations',
+                       'author_keywords': 'Author Keywords',
+                       'authors': 'Authors',
+                       'authors_with_affiliations': 'Authors with affiliations',
+                       'document_type': 'Document Type',
+                       'doi': 'DOI',
+                       'index_keywords': 'Index Keywords' ,
+                       'issn': 'ISSN',
+                       'journal': 'Source title',
+                       'language': 'Language of Original Document',
+                       'page_start': 'Page start' ,
+                       'references': 'References' ,
+                       'sub_subjects': '',
+                       'subjects': '',
+                       'title': 'Title' ,
+                       'volume': 'Volume',
+                       'year': 'Year',
+                       }
+            
+COLUMN_LABEL_WOS = {'affiliations': '',
+                    'author_keywords': 'ID',
+                    'authors': 'AU',
+                    'authors_with_affiliations': 'C1',
+                    'document_type': 'DT',
+                    'doi': 'DI',
+                    'index_keywords': 'DE',
+                    'issn': 'SN',
+                    'journal': 'SO',
+                    'language': 'LA',
+                    'page_start': 'BP',
+                    'references': 'CR',
+                    'sub_subjects': 'SC',
+                    'subjects': 'WC',
+                    'title': 'TI',
+                    'volume': 'VL',
+                    'year': 'PY' ,
+                    }
 
 COOC_AUTHORIZED_ITEMS = ['AU','CU','AK','IK','TK','S','S2']
 
@@ -114,7 +204,6 @@ DIC_OUTDIR_PARSING = {'A':'articles.dat',
                       'S':'subjects.dat',
                       'S2':'subjects2.dat',
                       'R':'references.dat',
-                      'K':'keywords.dat',
                      }
 
 DISTRIBS_ITEM_FILE = 'DISTRIBS_itemuse.json'
@@ -131,7 +220,17 @@ FOLDER_NAMES = {'rawdata':     'rawdata',
                 'cooccurrence':'cooc',
                }
 
-HEADER = False
+FOLDER_SELECTION_HELP_TEXT ='''The selected folder is edited.
+                               For changing the selection, just make a new selection.
+                               If the selection is valid, please close the window'''
+
+GUI_BUTTON_RATIO = 2.5
+
+GUI_TEXT_MAX_LINES_NB = 3
+
+GUI_WIDGET_RATIO = 1.2 
+
+HEADER = True
 
 # Authors affiliations filter (default: None) as a dict keyed by:
 #    - 'secondary_inst': list of institution names (str) to be selected
@@ -216,7 +315,6 @@ DIC_OUTDIR_DESCRIPTION = res = {**DIC_OUTDIR_DESCRIPTION, **_DIC_OUTDIR_DESCRIPT
 USECOLS_SCOPUS = [x.strip() for x in USECOLS_SCOPUS.split(',')]
 
 USECOLS_WOS = [x.strip() for x in USECOLS_WOS.split(',')]
-
 
 
 
