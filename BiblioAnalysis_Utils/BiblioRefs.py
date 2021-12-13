@@ -8,13 +8,13 @@ SCOPUS_JOURNAL_LIST = 'scopus-journal-list-download.xlsx'
 SCOPUS_XLS_SHEET_NAME = 'Scopus Sources October 2020'
 
 
-
 def create_scopus_cat_codes():
-
-    import requests
-    from bs4 import BeautifulSoup 
+    
+    # 3rd party imports
+    import requests 
     import pandas as pd
-
+    from bs4 import BeautifulSoup 
+    
     URL =  'https://service.elsevier.com/app/answers/detail/a_id/15181/supporthub/scopus/related/1/session/'
     URL += 'L2F2LzEvdGltZS8xNjE5MzMwNzQyL2dlbi8xNjE5MzMwNzQyL3NpZC9mVWt2WEdTNmNDdVIwZU5Da2dVU3JNOFNmbHA4NVUlN0Vxaj'
     URL += 'hoWHpqUWsxY2pBSlVZWUFoRmxOUWhBNUZpOVFMbVZuU2JNMEF0Q2w3NzB2cHg0aWxCdEJoaFZEWCU3RUVxNDNaRXdvSnVvX2dLRTd3'
