@@ -41,9 +41,7 @@ def scopus_journals_issn_cat(root):
     
     URL = 'https://www.scopusjournals.com/p/redirect.html?&url=https:'
     URL +=  '//www.internauka.org/sites/default/files/scopus/' + SCOPUS_JOURNAL_LIST
-    
-    
-    
+        
     df = pd.read_excel(root / Path('Downloads') / Path(SCOPUS_JOURNAL_LIST),
                        sheet_name= SCOPUS_XLS_SHEET_NAME,
                        usecols = 'B,C,X')
