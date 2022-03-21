@@ -1,0 +1,2 @@
+include BiblioAnalysis_RefFiles/*.txt
+include LICENSE
