@@ -1,2 +1,2 @@
-include BiblioAnalysis_RefFiles/*.txt
+include BiblioAnalysis_Utils/BiblioAnalysis_RefFiles/*.txt
 include LICENSE
