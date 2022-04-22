@@ -18,4 +18,3 @@ from BiblioAnalysis_Utils.BiblioRefs import *
 from BiblioAnalysis_Utils.BiblioSpecificGlobals import *
 from BiblioAnalysis_Utils.BiblioSys import *
 from BiblioAnalysis_Utils.BiblioTempDev import *
-from BiblioAnalysis_Utils.BiblioUnusedGlobals import *
