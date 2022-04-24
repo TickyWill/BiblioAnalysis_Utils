@@ -3,7 +3,7 @@ backcall==0.2.0
 beautifulsoup4==4.10.0
 bs4==0.0.1
 click==8.0.3
-colorama==0.4.4; platform_system == "Windows"   
+colorama==0.4.4   
 cycler==0.11.0
 Cython==0.29.25; platform_system == "Darwin"
 decorator==5.1.0
