@@ -14,7 +14,7 @@ install_requires = open(path.join(this_directory, 'requirements.txt'), encoding=
 # This setup is suitable for "python setup.py develop".
 
 setup(name='BiblioAnalysis_Utils',
-      version='3.0.0',
+      version='4.0.0',
       description='A toolbox for bibliographic analysis',
       long_description=long_description,
       long_description_content_type='text/markdown',
