@@ -152,7 +152,7 @@ def _concatenate_dat(filename, path_first_corpus, path_second_corpus, path_conca
     df_second_corpus = pd.read_csv(path_second_corpus / Path(filename), sep="\t")
     
     # Incrementing the "pub_id_alias" column values of second corpus by first corpus length 
-    first_corpus_articles_nb = max(df_first_corpus[pub_id_alias])
+    first_corpus_articles_nb = max(df_first_corpus[pub_id_alias]) + 1
     df_second_corpus[pub_id_alias] = df_second_corpus[pub_id_alias] + first_corpus_articles_nb
     
     # Cancatenating the two dataframes
