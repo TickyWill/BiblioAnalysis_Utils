@@ -91,4 +91,4 @@ def _get_displays(in_to_mm=None):
 ######################## Definition of globals ###########################
 
 DISPLAYS = _get_displays()
-GUI_DISP = len(DISPLAYS)-1 
+GUI_DISP = 0 
