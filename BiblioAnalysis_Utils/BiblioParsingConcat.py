@@ -1,7 +1,7 @@
 __all__ = ['parsing_concatenate_deduplicate',]
 
 
-def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None):
+def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None, verbose= False):
     ''' The `parsing_concatenate_deduplicate` function concatenates parsing files of two corpuses 
     using the `_get_common_files` and `_concatenate_dat` functions. 
     Then it proceeds with deduplication of article lines using the `_deduplicate_articles` function.
@@ -52,7 +52,8 @@ def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None):
     # of the first corpus with the one of the second corpus 
     for file in files_list: 
         _concatenate_dat(file, path_scopus_parsing, path_wos_parsing, path_concat_parsing)
-    print(f'\nParsing files successfully concatenated and saved in:\n{path_concat_parsing}')
+
+        print(f'\nParsing files successfully concatenated and saved in:\n{path_concat_parsing}')
     
     # Setting the secondary institutions
     if inst_filter_list: 

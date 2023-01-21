@@ -91,13 +91,4 @@ def _get_displays(in_to_mm=None):
 ######################## Definition of globals ###########################
 
 DISPLAYS = _get_displays()
-
-   # Get the prime display choice
-   # TO DO: replace input by a GUI to select the gui display for the whole run of BiblioAnalysis
-displays_nb = len(DISPLAYS)
-GUI_DISP = [i for i in range(displays_nb) if DISPLAYS[i]['is_primary']][0]
-if displays_nb>1:
-    disp_select = input('\nSelect Id of gui prime-display '+
-                       '(value: 0 to '+ str(displays_nb-1)+
-                      '; default:'+ str(GUI_DISP)+')')
-    if disp_select: GUI_DISP = int(disp_select)  
+GUI_DISP = len(DISPLAYS)-1 
