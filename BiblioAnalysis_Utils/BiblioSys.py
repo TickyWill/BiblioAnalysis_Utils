@@ -67,9 +67,6 @@ def _get_displays(in_to_mm=None):
                  'height_mm':m.height_mm,'name':m.name,
                  'is_primary':m.is_primary} for m in get_monitors()]
     
-
-    print('Number of detected displays:',len(displays))
-    
     for disp in range(len(displays)):
         width_px = displays[disp]['width']
         height_px = displays[disp]['height']
