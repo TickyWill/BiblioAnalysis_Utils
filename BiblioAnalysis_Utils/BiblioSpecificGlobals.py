@@ -7,6 +7,7 @@ __all__ = ['BLACKLISTED_WORDS',
            'COL_NAMES',
            'COLUMN_LABEL_SCOPUS',
            'COLUMN_LABEL_WOS',
+           'COLUMN_TYPE_SCOPUS',
            'CONCATENATED_XLSX',
            'COOC_AUTHORIZED_ITEMS',
            'COOC_AUTHORIZED_ITEMS_DICT',
@@ -130,7 +131,9 @@ COL_NAMES = {   'pub_id':       pub_id,
                                  'Sub_subject'],
                 'temp_col':     ['Title_LC', 
                                  'Journal_norm'],
-            }                   
+            } 
+
+
             
 COLUMN_LABEL_SCOPUS = {'affiliations': 'Affiliations',
                        'author_keywords': 'Author Keywords',
@@ -169,6 +172,25 @@ COLUMN_LABEL_WOS = {'affiliations': '',
                     'volume': 'VL',
                     'year': 'PY' ,
                     }
+
+COLUMN_TYPE_SCOPUS = {COLUMN_LABEL_SCOPUS['affiliations']             : str,
+                      COLUMN_LABEL_SCOPUS['author_keywords']          : str,
+                      COLUMN_LABEL_SCOPUS['authors']                  : str,
+                      COLUMN_LABEL_SCOPUS['authors_with_affiliations']: str,
+                      COLUMN_LABEL_SCOPUS['document_type']            : str,
+                      COLUMN_LABEL_SCOPUS['doi']                      : str,
+                      COLUMN_LABEL_SCOPUS['index_keywords']           : str,
+                      COLUMN_LABEL_SCOPUS['issn']                     : str,
+                      COLUMN_LABEL_SCOPUS['journal']                  : str,
+                      COLUMN_LABEL_SCOPUS['language']                 : str,
+                      COLUMN_LABEL_SCOPUS['page_start']               : str,
+                      COLUMN_LABEL_SCOPUS['references']               : str,
+                      COLUMN_LABEL_SCOPUS['sub_subjects']             : str,
+                      COLUMN_LABEL_SCOPUS['subjects']                 : str,
+                      COLUMN_LABEL_SCOPUS['title']                    : str,
+                      COLUMN_LABEL_SCOPUS['volume']                   : str,
+                      COLUMN_LABEL_SCOPUS['year']                     : int,
+                     }
 
 CONCATENATED_XLSX = 'articles_concat.xlsx'
 

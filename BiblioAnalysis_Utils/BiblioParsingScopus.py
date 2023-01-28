@@ -1009,6 +1009,7 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_TYPE_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS_CAT_CODES
@@ -1034,7 +1035,7 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
     path_scopus_journals_issn_cat = Path(__file__).parent / rep_utils / Path(SCOPUS_JOURNALS_ISSN_CAT)
 
     # Reading and checking the corpus file
-    df_corpus = pd.read_csv(in_dir_parsing / Path(filename))     
+    df_corpus = pd.read_csv(in_dir_parsing / Path(filename), dtype = COLUMN_TYPE_SCOPUS)     
     df_corpus = check_and_drop_columns(SCOPUS,df_corpus,filename)    
     df_corpus = _check_affiliation_column_scopus(df_corpus)
     df_corpus = df_corpus.replace(np.nan,UNKNOWN,regex=True)
