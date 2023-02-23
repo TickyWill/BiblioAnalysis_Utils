@@ -16,7 +16,7 @@ with open(path.join(this_directory, 'requirements.txt'), encoding='utf-8') as f:
 # This setup is suitable for "python setup.py develop".
 
 setup(name='BiblioAnalysis_Utils',
-      version='5.0.0',
+      version='5.1.0',
       description='A toolbox for bibliographic analysis',
       long_description=long_description,
       long_description_content_type='text/markdown',
