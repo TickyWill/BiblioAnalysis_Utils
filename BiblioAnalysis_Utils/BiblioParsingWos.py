@@ -1,16 +1,18 @@
 __all__ = ['biblio_parser_wos','read_database_wos']
 
-# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals: ACCENT_CHANGE
+# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals: DASHES_CHANGE, LANG_CHAR_CHANGE,PONCT_CHANGE 
 # Globals used from BiblioAnalysis_Utils.BiblioSpecificGlobals: DIC_OUTDIR_PARSING, DIC_DOCTYPE, 
 #                                                               ENCODING, FIELD_SIZE_LIMIT,
 #                                                               RE_ADDRESS, RE_AUTHOR,
 #                                                               RE_REF_AUTHOR_WOS, RE_REF_JOURNAL_WOS,
 #                                                               RE_REF_PAGE_WOS, RE_REF_VOL_WOS, 
-#                                                               RE_REF_YEAR_WOS, RE_SUB, SYMBOL, 
-#                                                               UNKNOWN, USECOLS_WOS, WOS
+#                                                               RE_REF_YEAR_WOS, RE_SUB, RE_SUB_FIRST, 
+#                                                               SYMBOL, UNKNOWN, USECOLS_WOS, WOS
 
-# Functions used from BiblioAnalysis_Utils.BiblioParsingUtils: build_title_keywords, build_institutions_dic
-#                                                              country_normalization, normalize_journal_names, name_normalizer 
+# Functions used from BiblioAnalysis_Utils.BiblioParsingInstitutions: address_inst_full_list, build_institutions_dic
+#                                                               
+# Functions used from BiblioAnalysis_Utils.BiblioParsingUtils: build_title_keywords, country_normalization, 
+#                                                              normalize_journal_names, name_normalizer, remove_special_symbol 
                                                               
 
 
@@ -38,6 +40,7 @@ def _build_authors_wos(df_corpus):
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     
@@ -98,7 +101,8 @@ def _build_keywords_wos(df_corpus,dic_failed):
     import pandas as pd
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioParsingUtils import build_title_keywords    
+    from BiblioAnalysis_Utils.BiblioParsingUtils import build_title_keywords 
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
@@ -106,8 +110,9 @@ def _build_keywords_wos(df_corpus,dic_failed):
     key_word = namedtuple('key_word',COL_NAMES['keywords'] )
     
     pub_id_alias = COL_NAMES['keywords'][0]
-    type_alias = COL_NAMES['keywords'][1]
     keyword_alias = COL_NAMES['keywords'][1]
+    title_alias = COL_NAMES['temp_col'][2]
+    kept_tokens_alias = COL_NAMES['temp_col'][4]    
     
     list_keyword_AK = [] 
     df_AK = df_corpus[COLUMN_LABEL_WOS['author_keywords']].fillna('')
@@ -130,10 +135,10 @@ def _build_keywords_wos(df_corpus,dic_failed):
             
     list_keyword_TK = []
     df_title = pd.DataFrame(df_corpus[COLUMN_LABEL_WOS['title']].fillna('')) # Tranform a data list into dataframe
-    df_title.columns = ['Title']  # To be coherent with the convention of function build_title_keywords
+    df_title.columns = [title_alias]  # To be coherent with the convention of function build_title_keywords 
     df_TK,list_of_words_occurrences = build_title_keywords(df_title)
     for pub_id in df_TK.index:
-        for token in df_TK.loc[pub_id,'kept_tokens']:
+        for token in df_TK.loc[pub_id,kept_tokens_alias]:
             token = token.lower().strip()
             list_keyword_TK.append(key_word(pub_id,
                                          token if token != 'null' else '”null”'))                                    
@@ -214,8 +219,11 @@ def _build_addresses_countries_institutions_wos(df_corpus,dic_failed):
         The dataframes df_address, df_country, df_institution.
         
     Notes:
-        The globals 'ACCENT_CHANGE', 'COL_NAMES', 'COLUMN_LABEL_WOS', 'RE_ADDRESS', 'RE_AUTHOR' and 'RE_SUB' are used.
-        The function `country_normalization`is used from `BiblioAnalysis_utils` package.
+        The globals 'COL_NAMES', 'COLUMN_LABEL_WOS', 'RE_ADDRESS', 'RE_AUTHOR', 'RE_SUB', 'RE_SUB_FIRST'
+        and 'UNKNOWN' are imported from `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils` package.
+        The functions `remove_special_symbol`, `address_inst_full_list`, `build_institutions_dic` and `country_normalization` 
+        are imported from `BiblioParsingUtils` of `BiblioAnalysis_utils` package.
+        
     '''
 
     # Standard library imports
@@ -227,13 +235,15 @@ def _build_addresses_countries_institutions_wos(df_corpus,dic_failed):
     import pandas as pd
     
     # Local imports
+    from BiblioAnalysis_Utils.BiblioParsingUtils import remove_special_symbol
     from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import ACCENT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_ADDRESS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_AUTHOR
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB_FIRST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
 
     address = namedtuple('address',COL_NAMES['address'] )
@@ -264,13 +274,14 @@ def _build_addresses_countries_institutions_wos(df_corpus,dic_failed):
         if addresses:
             for idx, author_address in enumerate(addresses):
                 
-                author_address = author_address.translate(ACCENT_CHANGE) # Translate accentuated characters using global ACCENT_CHANGE 
+                author_address = remove_special_symbol(author_address, only_ascii=True, strip=True)
                 list_addresses.append(address(pub_id,
                                               idx,
                                               author_address))
 
                 author_institution_raw = author_address.split(',')[0]
-                author_institution = re.sub(RE_SUB,'University'+' ', author_institution_raw)
+                author_institution_raw = re.sub(RE_SUB_FIRST,'University' + ', ', author_institution_raw)                 
+                author_institution = re.sub(RE_SUB,'University' + ' ', author_institution_raw)
                 list_institutions.append(institution(pub_id,
                                                      idx,
                                                      author_institution))
@@ -390,11 +401,15 @@ def _build_authors_countries_institutions_wos(df_corpus, dic_failed, inst_filter
                                  which value is 'None' at initialization of the parsing.
                             
     Returns:
-        (dataframe):  "df_addr_country_inst".
+        (dataframe):  the dataframe of addresses, countrie and institutions for each author of a publication.
         
     Notes:
-        The globals 'ACCENT_CHANGE', 'COL_NAMES', 'COLUMN_LABEL_WOS', 'RE_ADDRESS', 'RE_AUTHOR', 'RE_SUB' and 'SYMBOL' are used.
-        The functions `build_institutions_dic`and `country_normalization` are used from `BiblioAnalysis_utils` package.
+        The globals 'COL_NAMES', 'COLUMN_LABEL_WOS', 'RE_ADDRESS', 'RE_AUTHOR', 'RE_SUB', 'RE_SUB_FIRST',
+        'SYMBOL' and 'UNKNOWN' are imported from `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils` package.
+        The functions `remove_special_symbol` and `country_normalization` are imported from `BiblioParsingUtils` 
+        of `BiblioAnalysis_utils` package.
+        The functions `address_inst_full_list` and `build_institutions_dic` are imported 
+        from `BiblioParsingInstitutions` module of `BiblioAnalysis_utils` package.
         
     '''
     
@@ -410,45 +425,32 @@ def _build_authors_countries_institutions_wos(df_corpus, dic_failed, inst_filter
     from fuzzywuzzy import process
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioParsingUtils import build_institutions_dic
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import address_inst_full_list
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import build_institutions_dic
+    
+    from BiblioAnalysis_Utils.BiblioParsingUtils import remove_special_symbol
     from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import ACCENT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_ADDRESS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_AUTHOR
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB_FIRST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SYMBOL
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
     
+    # Setting namedtuples
     addr_country_inst = namedtuple('address',COL_NAMES['auth_inst'][:-1] )
     author_address_tup = namedtuple('author_address','author address')
+    author_address_tup = namedtuple('author_address','author address')
     
+    # Setting regexp templates
     template_inst = Template('[$symbol1]?($inst)[$symbol2].*($country)(?:$$|;)')  
     
     # Definition of internal functions
-    def _address_inst_full_list(address, inst_dic):
-
-        country_raw = address.split(',')[-1].strip()
-        country = country_normalization(country_raw)
-
-        inst_full_list = []        
-        for raw_inst, norm_inst in inst_dic.items():  
-            raw_inst_split = raw_inst.split()
-            template_inst = Template(r'\s+'.join([r'(\b$inst'+str(i)+r'\b)' for i in range(len(raw_inst_split))]))
-            dic = {'inst'+str(i):inst for i,inst in enumerate(raw_inst_split)}
-            re_inst  = re.compile(template_inst.substitute(dic), re.IGNORECASE)
-            if re_inst.findall(address):
-                inst_full_list.append(norm_inst + '_' + country)
-        if inst_full_list:
-            inst_full_list_str = ';'.join(inst_full_list)
-        else:
-            inst_full_list_str = address.split(',')[0] + '_' + country
-
-        return inst_full_list_str
 
     def _address_inst_list(inst_filter_list,address):
-
         secondary_institutions = []
         for inst,country in inst_filter_list:
             re_inst  = re.compile(template_inst.substitute({'symbol1':SYMBOL,
@@ -459,25 +461,24 @@ def _build_authors_countries_institutions_wos(df_corpus, dic_failed, inst_filter
             if len(re_inst.findall(address))!=0:
                 secondary_institutions.append(1)
             else:
-                secondary_institutions.append(0)  
-             
+                secondary_institutions.append(0)               
         return secondary_institutions
         
     pub_id_alias = COL_NAMES['auth_inst'][0]
     pub_idx_author_alias = COL_NAMES['auth_inst'][1]
     address_alias = COL_NAMES['auth_inst'][2]
-    institution_alias = COL_NAMES['auth_inst'][4]
-    sec_institution_alias = COL_NAMES['auth_inst'][5]
+    norm_institution_alias = COL_NAMES['auth_inst'][4]
+    raw_institution_alias = COL_NAMES['auth_inst'][5]
+    sec_institution_alias = COL_NAMES['auth_inst'][6]
     
+    # Building the inst_dic dict
     inst_dic = build_institutions_dic(rep_utils = None, dic_inst_filename = None)    
     
     list_addr_country_inst = []
-    
     for pub_id, affiliation in zip(df_corpus.index,
                                    df_corpus[COLUMN_LABEL_WOS['authors_with_affiliations']]):
         if '['  in affiliation:  # Proceed if the field author is present in affiliation.
-
-            
+           
             # From the wos column C1 builds the list of tuples [([Author1, Author2,...], address1),...].
             list_authors = [[x.strip() for x in authors.split(';')] for authors in RE_AUTHOR.findall(affiliation)]
             list_affiliation = [x.strip() for x in RE_ADDRESS.findall(affiliation)]
@@ -508,25 +509,28 @@ def _build_authors_countries_institutions_wos(df_corpus, dic_failed, inst_filter
                                f'in pub_id {pub_id} has been replaced by "{UNKNOWN}" '
                                f'in "_build_addresses_countries_institutions_wos" function of "BiblioParsingWos.py" module')
                     print(Fore.BLUE + warning + Fore.BLACK)
-
                 
                 author_address_raw = tup.address
-                author_address_raw = author_address_raw.translate(ACCENT_CHANGE) # Translate accentuated characters using global ACCENT_CHANGE 
+                author_address_raw = remove_special_symbol(author_address_raw, only_ascii=True, strip=True)
+                author_address = re.sub(RE_SUB_FIRST,'University' + ', ', author_address_raw) 
                 author_address = re.sub(RE_SUB,'University' + ' ', author_address_raw)
-                author_institutions = _address_inst_full_list(author_address, inst_dic)
+                author_institutions_tup = address_inst_full_list(author_address, inst_dic)
 
                 list_addr_country_inst.append(addr_country_inst(pub_id,
                                                                 idx_author,
                                                                 tup.address,
                                                                 author_country,
-                                                                author_institutions))
+                                                                author_institutions_tup.norm_inst_list,
+                                                                author_institutions_tup.raw_inst_list,))
                 
-        else:  # If the field author is not present in affiliation complete namedtuple with ''
+        else:  # If the field author is not present in affiliation complete namedtuple with the global UNKNOWN
             list_addr_country_inst.append(addr_country_inst(pub_id,
-                                                                '',
-                                                                '',
-                                                                '',
-                                                                ''))
+                                                            UNKNOWN,
+                                                            UNKNOWN,
+                                                            UNKNOWN,
+                                                            UNKNOWN,
+                                                            UNKNOWN,))
+                
     # Building the a first version of the returned dataframe with 'list_addr_country_inst'
     # with columns "COL_NAMES['auth_inst'][:-1]"
     df_addr_country_inst = pd.DataFrame.from_dict({label:[s[idx] for s in list_addr_country_inst] 
@@ -550,7 +554,7 @@ def _build_authors_countries_institutions_wos(df_corpus, dic_failed, inst_filter
     df_addr_country_inst.sort_values(by=[pub_id_alias,pub_idx_author_alias], inplace=True)
     
     # Updating the dic_failed dict
-    list_id = df_addr_country_inst[df_addr_country_inst[institution_alias] == ''][pub_id_alias].values
+    list_id = df_addr_country_inst[df_addr_country_inst[norm_institution_alias] == ''][pub_id_alias].values
     dic_failed['authors_inst'] = {'success (%)':100*(1-len(list_id)/len(df_corpus)),
                                   pub_id_alias:[int(x) for x in list(list_id)]}    
 
@@ -682,10 +686,15 @@ def _build_articles_wos(df_corpus):
     '''
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import CHANGE
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import DASHES_CHANGE
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import LANG_CHAR_CHANGE
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import PONCT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import NORM_JOURNAL_COLUMN_LABEL         #####################################
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_DOCTYPE
 
     def _str_int_convertor(x):
@@ -704,7 +713,9 @@ def _build_articles_wos(df_corpus):
         return doctype
     
     def _treat_title(title):
-        title = title.translate(CHANGE)
+        title = title.translate(DASHES_CHANGE)
+        title = title.translate(LANG_CHAR_CHANGE)
+        title = title.translate(PONCT_CHANGE)
         return title
     
     pub_id_alias = COL_NAMES['articles'][0]
@@ -722,7 +733,8 @@ def _build_articles_wos(df_corpus):
                    COLUMN_LABEL_WOS['document_type'],
                    COLUMN_LABEL_WOS['language'],
                    COLUMN_LABEL_WOS['title'],
-                   COLUMN_LABEL_WOS['issn']]
+                   COLUMN_LABEL_WOS['issn'],
+                   NORM_JOURNAL_COLUMN_LABEL]         #####################################
                    
     df_article = df_corpus.loc[:,wos_columns].astype(str)
 
@@ -766,6 +778,7 @@ def _build_references_wos(df_corpus):
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_REF_AUTHOR_WOS
@@ -829,11 +842,25 @@ def _build_references_wos(df_corpus):
 
 def read_database_wos(filename):
     
-    '''The `read_database_wos`function allows to circumvent the error ParserError: '	' 
-       expected after '"' generated by the method `pd.read_csv`.
+    '''The `read_database_wos` function allows to circumvent the error ParserError: '	' 
+       expected after '"' generated by the method `pd.read_csv` when reading the raw wos-database file `filename`.
+       Then, it checks columns and drops unuseful columns using the `check_and_drop_columns` function.
+       It adds an index column. 
+       It replaces the unavailable items values by a string set in the global UNKNOWN.
+       It normalizes the journal names using the `normalize_journal_names` function.
        
     Args:
-        filename ()   
+        filename (str): the full path of the wos-database file. 
+        
+    Returns:
+        (dataframe): the cleaned corpus dataframe. 
+       
+    Note:
+        The functions 'check_and_drop_columns' and 'normalize_journal_names' are imported from the `BiblioParsingUtils`module 
+        of the `BiblioAnalysis_Utils` package.
+        The globals 'ENCODING', 'FIELD_SIZE_LIMIT', 'UNKNOWN' and 'WOS' are imported from the `BiblioSpecificGlobals` module 
+        of the `BiblioAnalysis_Utils` package.
+        
     '''
     # Standard library imports
     import sys
@@ -845,6 +872,7 @@ def read_database_wos(filename):
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import check_and_drop_columns
     from BiblioAnalysis_Utils.BiblioParsingUtils import normalize_journal_names
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import ENCODING
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import FIELD_SIZE_LIMIT
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
@@ -907,6 +935,8 @@ def biblio_parser_wos(in_dir_parsing, out_dir_parsing, inst_filter_list):
     import pandas as pd
     
     # Local imports
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import saving_raw_institutions
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
     
@@ -975,6 +1005,8 @@ def biblio_parser_wos(in_dir_parsing, out_dir_parsing, inst_filter_list):
     df_I2.to_csv(Path(out_dir_parsing) / Path(DIC_OUTDIR_PARSING[item] ), 
                  index=False,
                 sep='\t') 
+        # Saving raw institutions file (.csv) for further expending normalized institutions list                    ! To be checked
+    saving_raw_institutions(df_I2,out_dir_parsing)
     
     # Building and saving the file for subjects (.dat)
     item = 'S' 

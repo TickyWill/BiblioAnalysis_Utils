@@ -1,27 +1,31 @@
-__all__ = ['biblio_parser',
-           'build_institutions_dic',
+__all__ = ['accent_remove',                 # To remove after calls check in modules
+           'biblio_parser',
            'build_title_keywords',
            'check_and_drop_columns',
-           'country_normalization',
-           'extend_author_institutions',
-           'getting_secondary_inst_list',
+           'country_normalization',         # To remove after replace by 'normalize_country' when called in modules
            'merge_database',
            'name_normalizer',
+           'normalize_country',
            'normalize_journal_names',
-           'setting_secondary_inst_filter',
+           'rationalize_town_names',
+           'read_towns_per_country',
+           'remove_special_symbol',
+           'special_symbol_remove',         # To remove after replace by 'remove_special_symbol' when called in modules (done in this module BiblioParsingWos and BiblioParsingScopus)
+           'town_names_uniformization',     # To remove after replace  by 'rationalize_town_names' when called in modules
            'upgrade_col_names',
            ]
 
-# 
-# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals:  ALIAS_UK, CHANGE, COUNTRIES,
+
+# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals:  ALIAS_UK, COUNTRIES, 
+#                                                               DASHES_CHANGE, LANG_CHAR_CHANGE, PONCT_CHANGE, SYMB_CHANGE  
 # Globals used from BiblioAnalysis_Utils.BiblioSpecificGlobals: BLACKLISTED_WORDS, COL_NAMES,
-#                                                               DIC_INST_FILENAME, DIC_LOW_WORDS, DIC_OUTDIR_PARSING ,              
+#                                                               DIC_LOW_WORDS, DIC_OUTDIR_PARSING ,
+#                                                               DIC_TOWN_SYMBOLS, DIC_TOWN_WORDS,
 #                                                               INST_FILTER_LIST, REP_UTILS, 
 #                                                               NLTK_VALID_TAG_LIST, NOUN_MINIMUM_OCCURRENCES,
-#                                                               RE_NUM_CONF, RE_YEAR_JOURNAL,
-#                                                               SCOPUS, USECOLS_SCOPUS, WOS
+#                                                               RE_NUM_CONF,RE_YEAR_JOURNAL,
+#                                                               SCOPUS, USECOLS_SCOPUS, UNKNOWN, WOS
 
-# Functions used from BiblioAnalysis_Utils.BiblioGui: Select_multi_items
 # Functions used from BiblioAnalysis_Utils.BiblioParsingScopus: biblio_parser_scopus
 # Functions used from BiblioAnalysis_Utils.BiblioParsingWos: biblio_parser_wos
 
@@ -48,15 +52,16 @@ def build_title_keywords(df):
        4- Suppress words pertening to BLACKLISTED_WORDS to the list  from the bag of words
     
     Args:
-       df (dataframe): pub_id | Title 
-       
+       df (dataframe): pub_id | title_alias 
+
     Returns:
-       df (dataframe): pub_id | title_token | kept_tokens where title_token is the list of token of the title
-         and kept_token the list of tokens with a frequency occurrence >= NOUN_MINIMUM_OCCURRENCES
+       df (dataframe): pub_id | title_tokens_alias | kept_tokens_alias where title_tokens is the list of tokens of the title
+         and kept_tokens the list of tokens with a frequency occurrence >= NOUN_MINIMUM_OCCURRENCES
        bag_of_words_occurrences (list of tuples): [(word_1,# occurrence_1), (word_2,# occurrence_2), ...]
         
     '''
-
+    # To Do: update docstring
+    
     # Standard library imports
     import operator
     from collections import Counter
@@ -66,9 +71,10 @@ def build_title_keywords(df):
     import numpy as np
     
     # Local imports
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import BLACKLISTED_WORDS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import NLTK_VALID_TAG_LIST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import NOUN_MINIMUM_OCCURRENCES
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import BLACKLISTED_WORDS
     
     def tokenizer(text):
         
@@ -95,9 +101,13 @@ def build_title_keywords(df):
     
         return valid_words_lemmatized        
 
-    df['title_token'] = df['Title'].apply(tokenizer)
+    title_alias = COL_NAMES['temp_col'][2]
+    title_tokens_alias = COL_NAMES['temp_col'][3]
+    kept_tokens_alias = COL_NAMES['temp_col'][4]
+    
+    df[title_tokens_alias] = df[title_alias].apply(tokenizer)
 
-    bag_of_words = np.array(df.title_token.sum()) # remove the blacklisted words from the bag of words
+    bag_of_words = np.array(df[title_tokens_alias].sum()) # remove the blacklisted words from the bag of words
     for remove in BLACKLISTED_WORDS:
         bag_of_words = bag_of_words[bag_of_words != remove] 
 
@@ -106,18 +116,22 @@ def build_title_keywords(df):
 
     keywords_TK = set([x for x,y in bag_of_words_occurrences if y>=NOUN_MINIMUM_OCCURRENCES])
     
-    df['kept_tokens'] = df['title_token'].apply(lambda x :list(keywords_TK.intersection(set(x))))
+    df[kept_tokens_alias] = df[title_tokens_alias].apply(lambda x :list(keywords_TK.intersection(set(x))))
    
     return df,bag_of_words_occurrences
 
-def country_normalization(country):
+
+def normalize_country(country):
+    
     '''
     Normalize the country name for coherence seeking between wos and scopus corpuses.
     '''
-
+    # To Do: update docstring
+    
     # Local imports
     from BiblioAnalysis_Utils.BiblioGeneralGlobals import ALIAS_UK
     from BiblioAnalysis_Utils.BiblioGeneralGlobals import COUNTRIES
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
     
     country_clean = country
     if country not in COUNTRIES:
@@ -134,125 +148,27 @@ def country_normalization(country):
         elif country == 'Vietnam':   
             country_clean = 'Viet Nam'
         else:
-            country_clean = ''
+            country_clean = UNKNOWN
 
     return country_clean
 
 
-def build_institutions_dic(rep_utils = None, dic_inst_filename = None):
-    '''
-    The `builds_institutions_dic` fuction builds the dict 'inst_dic' 
-    giving the mormalized names of institutions from a csv file `dic_inst_filename`.
-    The name of the csv file is set in the `DIC_INST_FILENAME` global.
-    
-    Args: 
-        rep_utils (str): name of the folder where the csv file is stored
-        dic_inst_filename (str): name of the csv file.        
-    
-    Returns:       
-        `dict`: `inst_dic` as {raw_inst:norm_inst} where 
-                - raw_inst a raw institution name 
-                - norm_inst is the normalized institution name.
-        
-    Note:
-        The globals `REP_UTILS` and `DIC_INST_FILENAME` are used.
-    
-    '''
-
-    # Standard library imports
-    from pathlib import Path
-    
-    # 3rd party imports
-    import pandas as pd
-    
-    # Local imports
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals  import DIC_INST_FILENAME
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import REP_UTILS    
-    
-    if dic_inst_filename == None: dic_inst_filename = DIC_INST_FILENAME
-    if rep_utils == None: rep_utils = REP_UTILS 
-    
-    # Setting the file path for dic_inst_filename file reading    
-    path_dic_inst = Path(__file__).parent / rep_utils / Path(dic_inst_filename)
-    
-    # Reading and cleaning the dic_inst_filename file
-    inst_dic = pd.read_csv(path_dic_inst,sep=':',header=None,encoding='latin1')
-    inst_dic.sort_values([0],inplace=True)
-    inst_dic[0] = inst_dic[0].str.strip()
-    inst_dic[1] = inst_dic[1].str.strip()
-    inst_dic = dict(zip(inst_dic[0],inst_dic[1]))
-    
-    return inst_dic
-
-
-def setting_secondary_inst_filter(out_dir_parsing):
-    '''The `setting_secondary_inst_filter` function allows building the affiliation filter "inst_filter_list"
-    fron the institutions list of the corpus using the `Select_multi_items` GUI.
-    
-    Args:
-        out_dir_parsing (path): the corpus parsing path for reading the "DIC_OUTDIR_PARSING['I2']" file.
-        
-    Returns:
-        (list): list of tuples (institution,country) selected by the user.
-        
-    Notes:
-        The globals 'COL_NAMES'and 'DIC_OUTDIR_PARSING' are used.
-        The function `Select_multi_items`is used from `BiblioAnalysis_utils` package.
-        
-    '''
-    
-    # Standard library imports
-    from pathlib import Path
-    
-    # 3rd party imports
-    import numpy as np
-    import pandas as pd
-    
-    # Local imports
-    from BiblioAnalysis_Utils.BiblioGui import Select_multi_items
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
-    
-    
-    institutions_alias = COL_NAMES['auth_inst'][4]
-    country_alias = COL_NAMES['country'][2]    
-    
-    df_auth_inst = pd.read_csv(Path(out_dir_parsing) / Path(DIC_OUTDIR_PARSING['I2']),
-                                sep = '\t')
-    raw_institutions_list = []
-    for auth_inst in df_auth_inst[institutions_alias]:
-        raw_institutions_list.append(auth_inst)
-        
-    institutions_list = list(np.concatenate([raw_inst.split(';') for raw_inst in raw_institutions_list]))
-    institutions_list  = sorted(list(set(institutions_list)))
-
-    country_institution_list = [x.split('_')[1] + ':' + x.split('_')[0] for x in institutions_list]
-    country_institution_list = sorted(country_institution_list)
-
-    selected_list = Select_multi_items(country_institution_list,
-                                       mode='multiple',
-                                       fact=2,
-                                       win_widthmm=80,
-                                       win_heightmm=100,
-                                       font_size=16)
-
-    inst_filter_list = [(x.split(':')[1].strip(),x.split(':')[0].strip()) for x in selected_list]
-    
-    return inst_filter_list
-
-
 def merge_database(database,filename,in_dir,out_dir):
     
-    '''Merges several databases in one database
+    '''The `merge_database` function merges several corpus of same database type in one corpus.
     
     Args:
-        database (string): database type (scopus or wos)
-        filename (str): name of the merged database
-        in_dir (str): name of the folder where the databases are stored
-        out_dir (str): name of the folder where the merged databases will be stored
+        database (str): database type (scopus or wos).
+        filename (str): name of the merged database.
+        in_dir (str): name of the folder where the corpuses are saved.
+        out_dir (str): name of the folder where the merged corpuses will be saved.
     
     Notes:
-        The USECOLS_SCOPUS global is used.
+        The globals 'SCOPUS' and 'WOS' from `BiblioSpecificGlobals`module 
+        of `BiblioAnalysis_Utils`package are used.
+        The functions 'read_database_scopus' and 'read_database_wos' 
+        from, respectively, `BiblioParsingScopus`module and `BiblioParsingWos` 
+        of `BiblioAnalysis_Utils`package are used. 
         
     '''
     # Standard library imports
@@ -264,8 +180,11 @@ def merge_database(database,filename,in_dir,out_dir):
     import pandas as pd
     
     # Local imports
+    from BiblioAnalysis_Utils.BiblioParsingScopus import read_database_scopus
+    from BiblioAnalysis_Utils.BiblioParsingWos import read_database_wos
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import USECOLS_SCOPUS
+    #from BiblioAnalysis_Utils.BiblioSpecificGlobals import USECOLS_SCOPUS       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import WOS
 
     list_data_base = []
@@ -282,9 +201,9 @@ def merge_database(database,filename,in_dir,out_dir):
             list_data_base.extend(Path(path) / Path(file) for file in files
                                                           if file.endswith(".csv"))
         for file in list_data_base:
-            df = pd.read_csv(file,usecols=USECOLS_SCOPUS) # reads the database
-            list_df.append(df)
-            
+            #df = pd.read_csv(file,usecols=USECOLS_SCOPUS) # reads the database     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            #list_df.append(df)                                                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+            list_df.append(read_database_scopus(file))
     else:
         raise Exception(f"Sorry, unrecognized database {database} : should be {WOS} or {SCOPUS} ")
         
@@ -293,40 +212,42 @@ def merge_database(database,filename,in_dir,out_dir):
 
 def name_normalizer(text):
     
-    '''Normalizes the author name spelling according the three debatable rules:
-            - replacing none ascii letters by ascii ones
-            - capitalizing first name 
-            - capitalizing surnames
-            - supressing comma and dot
-            
+    '''The `name_normalizer` function normalizes the author name spelling according the three debatable rules:
+            - replacing none ascii letters by ascii ones,
+            - capitalizing first name, 
+            - capitalizing surnames,
+            - supressing comma and dot.
+       It uses the internal funtion `remove_special_symbol`of this module "BiblioParsingUtils".    
        ex: name_normalizer(" GrÔŁ-biçà-vèLU D'aillön, E-kj. ")
-        >>> "Grol-Bica-Velu D'Aillon E-KJ"
+        >>> "Grol-Bica-Velu D'Aillon E-KJ".
         
     Args:
-        text (str): text to normalize
+        text (str): the text to normalize.
     
     Returns
-        The normalized text
+        (str) : The normalized text.
         
     Notes:
-        The CHANGE global is used.
+        The globals 'DASHES_CHANGE', 'LANG_CHAR_CHANGE' and 'PONCT_CHANGE' 
+        from `BiblioGeneralGlobals` module of `BiblioAnalysis_Utils` package are used.
+        
     '''
 
     # Standard library imports
-    import functools
     import re
-    import unicodedata
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import CHANGE
-
-    nfc = functools.partial(unicodedata.normalize,'NFD')
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import DASHES_CHANGE    
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import LANG_CHAR_CHANGE
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import PONCT_CHANGE
     
-    text = text.translate(CHANGE) # Translate special character using global CHANGE dict
-    text = nfc(text). \
-           encode('ascii', 'ignore'). \
-           decode('utf-8').\
-           strip()
+    # Translate special character 
+    text = text.translate(DASHES_CHANGE)
+    text = text.translate(LANG_CHAR_CHANGE)
+    text = text.translate(PONCT_CHANGE)
+    
+    # Removing accentuated characters
+    text = remove_special_symbol(text, only_ascii=True, strip=True)
     
     re_minus = re.compile('(-[a-zA-Z]+)')       # Captures: "cCc-cC-ccc-CCc"
     for text_minus_texts in re.findall(re_minus,text):
@@ -356,62 +277,62 @@ def name_normalizer(text):
 
 
 def normalize_journal_names(database,df_corpus):
-    '''The `normalize_journal_names` function normalizes the journal names in the journals specific column 
-    of the corpus dataframe through the replace of low words defined in the global 'DIC_LOW_WORDS' 
+    '''The function `normalize_journal_names` normalizes the journal names in a new journals specific column
+    of the corpus dataframe through the replace of low words defined in the global 'DIC_LOW_WORDS'
     and the drop of particular items using the regular expressions defined by 'RE_ADDS_JOURNAL' and 'RE_YEAR_JOURNAL'
     globals.
-    
+   
     Args:
         database (string): type of database among the ones defined by SCOPUS and WOS globals.
         df_corpus (dataframe): corpus dataframe to be normalized in terms of journal names.
-        
+       
     Returns:
         (dataframe): the dataframe with normalized journal names.
-        
+       
     Note:
         The globals 'COLUMN_LABEL_WOS', 'COLUMN_LABEL_SCOPUS','DIC_LOW_WORDS', 'RE_YEAR_JOURNAL', 'SCOPUS' and 'WOS' are used.
-    
+   
     '''
-    # Standard library imports
-    import re
-    
+   
     # Local imports
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS 
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_WOS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_LOW_WORDS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import NORM_JOURNAL_COLUMN_LABEL
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_NUM_CONF
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_YEAR_JOURNAL
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import WOS
-    
    
-    def _normalize_low_words(text): 
+   
+    def _normalize_low_words(text):
         for low_word in DIC_LOW_WORDS.keys():
             text = text.replace(low_word, DIC_LOW_WORDS[low_word]).strip()
         text = " ".join(text.split())
         return text
-
+ 
     def _journal_normalizer(journal):
         journal = ' ' + journal + ' '
         journal = journal.lower()
         journal_list = [" " + x + " " for x in journal.split()]
         new_journal = " ".join(journal_list)
-        if RE_YEAR_JOURNAL.findall(journal) or RE_NUM_CONF.findall(journal): 
+        if RE_YEAR_JOURNAL.findall(journal) or RE_NUM_CONF.findall(journal):
             to_remove = [x for x in journal_list if (RE_YEAR_JOURNAL.findall(x) or RE_NUM_CONF.findall(x))]
             for x in to_remove: new_journal = new_journal.replace(x,'')
         new_journal = " ".join(new_journal.split())
-        new_journal = _normalize_low_words(new_journal) 
+        new_journal = _normalize_low_words(new_journal)
         return new_journal
-    
+   
     if database == WOS:
         journal_alias = COLUMN_LABEL_WOS['journal']
     elif database == SCOPUS:
         journal_alias = COLUMN_LABEL_SCOPUS['journal']
     else:
-        raise Exception(f"Sorry, unrecognized database {database}: should be {WOS} or {SCOPUS} ") 
+        raise Exception(f"Sorry, unrecognized database {database}: should be {WOS} or {SCOPUS} ")
     
-    df_corpus[journal_alias] = df_corpus[journal_alias].apply(_journal_normalizer)
-    
+    norm_journal_alias = NORM_JOURNAL_COLUMN_LABEL
+    df_corpus[norm_journal_alias] = df_corpus[journal_alias].apply(_journal_normalizer)
+   
     return df_corpus
 
 
@@ -423,6 +344,7 @@ def biblio_parser(in_dir_parsing, out_dir_parsing, database, expert, rep_utils=N
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingScopus import biblio_parser_scopus
     from BiblioAnalysis_Utils.BiblioParsingWos import biblio_parser_wos
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import INST_FILTER_LIST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import REP_UTILS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS
@@ -475,6 +397,11 @@ def upgrade_col_names(corpus_folder):
     
     Args:
         corpus_folder (str): folder of the corpus to be adapted
+        
+    Notes:
+        The global 'COL_NAMES' from `BiblioSpecificGlobals` module 
+        of `BiblioAnalysis_Utils` package are used.
+    
     '''
     # Standard library imports
     import os
@@ -526,126 +453,248 @@ def upgrade_col_names(corpus_folder):
                 except:
                     print(Fore.WHITE + Back.RED + f'Warning: File {os.path.join(dirpath,file)} not recognized as a parsing file' + Style.RESET_ALL)
 
-                
-def extend_author_institutions(in_dir,inst_filter_list):
-    ''' The `extend_author_institutions`function extends the .dat file of authors with institutions 
-    initialy obtained by the parsing of the corpus, with complementary information about institutions
-    selected by the user.
+
+def read_towns_per_country(country_towns_file, rep_utils, dic_town_symbols, dic_town_words):
+    
+    '''The function `read_towns_per_country` builds a list of towns per country.
+    It calls the functions `rationalize_town_names`and `remove_special_symbol`
+    defined in the same module 'BiblioParsingUtils' of the package 'BiblioAnalysis_Utils'.
     
     Args:
-        in_dir (path): path to the .dat file of authors with institutions
-        inst_filter_list (list): the affiliation filter list of tuples (institution, country) 
-
-    Retruns:
-        None
+        country_towns_file (str): File name of the list of towns per country.
+        rep_utils (str): Folder of the file named 'country_towns_file'
+        
+    Returns:
+        (list): list of towns.
         
     Notes:
-        The globals 'COL_NAMES' and 'DIC_OUTDIR_PARSING' are used
-        from `BiblioAnalysis_utils` package.
-    
+        The data are extracted from the excel file 'country_towns' which is located in the folder
+        `rep_utils` of the package `BiblioAnalysis_Utils`.
+        
     '''
-    
     # Standard library imports
     from pathlib import Path
-    
+
     # 3rd party imports
+    import openpyxl
     import pandas as pd
-    
+
     # Local imports
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
-    
-    def _address_inst_list(inst_names_list,institutions):
+    import BiblioAnalysis_Utils as bau
 
-        secondary_institutions = []
-        for inst in inst_names_list:
-            if inst in institutions:
-                secondary_institutions.append(1)
-            else:
-                secondary_institutions.append(0)  
-             
-        return secondary_institutions
-    
-    institutions_alias = COL_NAMES['auth_inst'][4]
-    sec_institutions_alias = COL_NAMES['auth_inst'][5]
-    
-    # Setting the key for the name of the '.dat' file of authors with institutions 
-    # obtained by parsing the corpus
-    item = 'I2' 
-    
-    # Reading the '.dat' file                   
-    read_usecols = [COL_NAMES['auth_inst'][x] for x in [0,1,2,3,4]]     
-    df_I2= pd.read_csv(in_dir / Path(DIC_OUTDIR_PARSING[item]),
-                     sep='\t',
-                     usecols=read_usecols)
-    
-    # Setting an institution name for each of the institutions indicated in the institutions filter
-    inst_names_list = [f'{x[0]}_{x[1]}' for x in inst_filter_list]   
-    
-    # Building the "sec_institution_alias" column in the 'df_I2' dataframe using "inst_filter_list"
-    df_I2[sec_institutions_alias] = df_I2.apply(lambda row:
-                                             _address_inst_list(inst_names_list,row[institutions_alias]),
-                                             axis = 1)
+    file = Path(bau.__file__).parent / Path(rep_utils) / Path(country_towns_file)
+    wb = openpyxl.load_workbook(file)
 
-    # Distributing in a 'df_inst_split' df the value lists of 'df_I2[sec_institutions_alias]' column  
-    # into columns which names are in 'inst_names_list' list     
-    df_inst_split = pd.DataFrame(df_I2[sec_institutions_alias].sort_index().to_list(),
-                                          columns=inst_names_list)
-    
-    # Extending the 'df' dataframe with 'df_inst_split' dataframe
-    df_I2 = pd.concat([df_I2, df_inst_split], axis=1)
+    dict_df = pd.read_excel(file, 
+                            sheet_name=wb.sheetnames)
+    towns_dic = {x[0]:x[1]['Town name'].tolist() for x in dict_df.items()}
 
-    # Droping the 'df[sec_institutions_alias]' column which is no more usefull
-    df_I2.drop([sec_institutions_alias], axis=1, inplace=True)
+    for country in towns_dic.keys():
+        
+        list_towns = []
+        for town in towns_dic[country]:
+            town = town.lower()
+            town = rationalize_town_names(town, dic_town_symbols=dic_town_symbols, dic_town_words= dic_town_words)
+            town = remove_special_symbol(town, only_ascii = False, strip = False)
+            town = town.strip()
+            list_towns.append(town)
+
+        towns_dic[country]= list_towns
     
-    # Saving the extended 'df_I2' dataframe in the same '.dat' file 
-    df_I2.to_csv(in_dir/ Path(DIC_OUTDIR_PARSING[item]), 
-                 index=False,
-                 sep='\t') 
+    return towns_dic
+
+                    
+################################# Functions replacing deprecated ones ##########################################
+# To Do: 2022-12-08
+#    - Update All with functions replacing deprecated ones
+#    - Search for calls of deprecated functions in all BiblioAnalysis modules
+#    - Replace calls of deprecated functions by replacing functions and check args, returns and imports including globals
+
+def remove_special_symbol(text, only_ascii = True, strip = True):
+    '''The function `remove_special_symbol` removes accentuated characters in the string 'text'
+    and ignore non-ascii characters if 'only_ascii' is true. Finally, spaces at the ends of 'text'
+    are removed if strip is true.
     
-    
-def getting_secondary_inst_list(out_dir_parsing):
-    '''The `getting_secondary_inst_list` function provides the list of institutions of the corpus.
-   
     Args:
-        out_dir_parsing (path): the corpus parsing path for reading the "DIC_OUTDIR_PARSING['I2']" file 
-                                that lists the authors with their institutions for each article.
-       
+        text (str): The text where to remove special symbols.
+        only_ascii (boolean): If True, non-ascii characters are removed from 'text' (default: True).
+        strip (boolean): If True, spaces at the ends of 'text' are removed (default: True).
+        
     Returns:
-        (list): list of strings 'country:institution'
-       
-    Notes:
-        The globals 'COL_NAMES'and 'DIC_OUTDIR_PARSING' are used.       
+        (str): The modified string 'text'.
+    
     '''
-   
     # Standard library imports
-    from pathlib import Path
-   
-    # 3rd party imports
-    import numpy as np
-    import pandas as pd
-   
+    import functools
+    import unicodedata
+
+    if only_ascii:
+        nfc = functools.partial(unicodedata.normalize,'NFD')
+        text = nfc(text). \
+                   encode('ascii', 'ignore'). \
+                   decode('utf-8')
+    else:
+        nfkd_form = unicodedata.normalize('NFKD',text)
+        text = ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+    if strip:
+        text = text.strip()
+    
+    return text
+
+
+def rationalize_town_names(text, dic_town_symbols=None, dic_town_words=None):
+    '''The function `rationalize_town_names` replaces in the string 'text'
+    symbols and words defined by the keys of the dictionaries 'DIC_TOWN_SYMBOLS'
+    and 'DIC_TOWN_WORDS' by their corresponding values in these dictionaries.
+    
+    Args:
+        text (str): The string where changes will be done.
+        
+    Returns:
+        (str): The modified string.
+        
+    Notes:
+        The globals 'DIC_TOWN_SYMBOLS' and 'DIC_TOWN_WORDS' are imported from
+        `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils' package.
+    
+    '''
+    
+    if dic_town_symbols==None: 
+        # Local imports
+        from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_TOWN_SYMBOLS    
+        dic_town_symbols=DIC_TOWN_SYMBOLS
+    if dic_town_words==None: 
+        # Local imports
+        from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_TOWN_WORDS
+        dic_town_words=DIC_TOWN_WORDS
+    
+    # Uniformizing symbols in town names using the dict 'DIC_TOWN_SYMBOLS'
+    for town_symb in dic_town_symbols.keys():
+        text = text.replace(town_symb, dic_town_symbols[town_symb])
+
+    # Uniformizing words in town names using the dict 'DIC_TOWN_WORDS'
+    for town_word in dic_town_words.keys():
+        text = text.replace(town_word, dic_town_words[town_word])
+    
+    return text
+
+
+################################# Deprecated functions ##########################################
+
+
+def country_normalization(country):                                                                            # Deprecated, replaced by "normalize_country"
+    
+    '''
+    Normalize the country name for coherence seeking between wos and scopus corpuses.
+    '''
+    # To Do: update docstring
+    
     # Local imports
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
-   
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import ALIAS_UK
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import COUNTRIES
     
-    institutions_alias = COL_NAMES['auth_inst'][4]
-    country_alias = COL_NAMES['country'][2]   
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
     
-    df_auth_inst = pd.read_csv(Path(out_dir_parsing) / Path(DIC_OUTDIR_PARSING['I2']),
-                                sep = '\t')
-    raw_institutions_list = []
-    for auth_inst in df_auth_inst[institutions_alias]:
-        raw_institutions_list.append(auth_inst)
-       
-    institutions_list = list(np.concatenate([raw_inst.split(';') for raw_inst in raw_institutions_list]))
-    institutions_list  = sorted(list(set(institutions_list)))
- 
-    country_institution_list = [x.split('_')[1] + ':' + x.split('_')[0] for x in institutions_list]
-    country_institution_list = sorted(country_institution_list)
-   
-    return country_institution_list
-            
-            
-            
+    country_clean = country
+    if country not in COUNTRIES:
+        if country in  ALIAS_UK:
+            country_clean = 'United Kingdom'
+        elif 'USA' in country:
+            country_clean = 'United States'
+        elif ('china' in country) or ('China' in country):
+            country_clean = 'China'
+        elif country == 'Russia':    
+            country_clean = 'Russian Federation'
+        elif country == 'U Arab Emirates':    
+            country_clean = 'United Arab Emirates'
+        elif country == 'Vietnam':   
+            country_clean = 'Viet Nam'
+        else:
+            country_clean = UNKNOWN
+
+    return country_clean
+
+
+def town_names_uniformization(text):                                                                            # Deprecated, replaced by "rationalize_town_names"
+    '''the `town_names_uniformization` function replaces in the string 'text'
+    symbols and words defined by the keys of the dictionaries 'DIC_TOWN_SYMBOLS'
+    and 'DIC_TOWN_WORDS' by their corresponding values in these dictionaries.
+    
+    Args:
+        text (str): The string where changes will be done.
+        
+    Returns:
+        (str): the modified string.
+        
+    Notes:
+        The globals 'DIC_TOWN_SYMBOLS' and 'DIC_TOWN_WORDS' are imported from
+        `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils' package.
+    
+    '''
+    # Local imports
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_TOWN_SYMBOLS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_TOWN_WORDS
+    
+    # Uniformizing symbols in town names using the dict 'DIC_TOWN_SYMBOLS'
+    for town_symb in DIC_TOWN_SYMBOLS.keys():
+        text = text.replace(town_symb, DIC_TOWN_SYMBOLS[town_symb])
+
+    # Uniformizing words in town names using the dict 'DIC_TOWN_WORDS'
+    for town_word in DIC_TOWN_WORDS.keys():
+        text = text.replace(town_word, DIC_TOWN_WORDS[town_word])
+    
+    return text
+
+
+def accent_remove(text, strip = True):                                                                                  # Deprecated, replaced by "remove_special_symbol"
+    ''' The function `accent_remove` is deprecated and has been replaced by the function `special_symbol_remove` 
+     imported from 'BiblioParsingUtils' module of 'BiblioAnalysis' package
+     with the optional parameters "only_ascii" and "skip" set at the default value True.
+        
+    '''
+    # Standard library imports
+    import functools
+    import unicodedata
+
+    nfc = functools.partial(unicodedata.normalize,'NFD')
+    text = nfc(text). \
+               encode('ascii', 'ignore'). \
+               decode('utf-8')
+    if strip:
+        text = text.strip()
+    
+    return text
+
+
+def special_symbol_remove(text, only_ascii = True, strip = True):                                                        # Deprecated, replaced by "remove_special_symbol"
+    '''The function `special_symbol_remove` remove accentuated characters in the string 'text'
+    and ignore non-ascii characters if 'only_ascii' is true. Finally, spaces at the ends of 'text'
+    are removed if strip is true.
+    
+    Args:
+        text (str): the text where to remove special symbols.
+        only_ascii (boolean): True to remove non-ascii characters from 'text' (default: True).
+        strip (boolean): True to remove spaces at the ends of 'text' (default: True).
+        
+    Returns:
+        (str): the modified string 'text'.
+    
+    '''
+    # Standard library imports
+    import functools
+    import unicodedata
+
+    if only_ascii:
+        nfc = functools.partial(unicodedata.normalize,'NFD')
+        text = nfc(text). \
+                   encode('ascii', 'ignore'). \
+                   decode('utf-8')
+    else:
+        nfkd_form = unicodedata.normalize('NFKD',text)
+        text = ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+    if strip:
+        text = text.strip()
+    
+    return text

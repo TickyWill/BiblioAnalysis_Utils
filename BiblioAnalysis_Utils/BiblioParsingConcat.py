@@ -1,23 +1,29 @@
 __all__ = ['parsing_concatenate_deduplicate',]
 
 
-def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None, verbose= False):
+def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list = None):
     ''' The `parsing_concatenate_deduplicate` function concatenates parsing files of two corpuses 
-    using the `_get_common_files` and `_concatenate_dat` functions. 
-    Then it proceeds with deduplication of article lines using the `_deduplicate_articles` function.
+    using the `_get_common_files` and `_concatenate_dat` internal functions. 
+    Then it proceeds with deduplication of article lines using the `_deduplicate_articles` internal function.
     Finally, it rationalizes the content of the other parsing files using the IDs of the droped articles lines
-    in the `_deduplicate_dat` function.
-    The functions used are got from `BiblioParsingConcat.py` module of 'BiblioAnalysis_Utils' package.
-    The results are saved in folders defined through the global 'FOLDER_NAMES'.
+    in the `_deduplicate_dat` internal function.
+    The outputs are the parsing files of the concatenated corpus and the deduplicated corpus saved in dedicated folders.
+    Control files which names are set in the globals 'CONCATENATED_XLSX' and 'DEDUPLICATED_XLSX' are also saved 
+    as EXCEL files in the same folders.
     
     Args:
-        project_folder (string): path of the folder where the corpuses are saved.
+        useful_path_list (list): list of paths of the folders where the corpuses are parsed.
+        inst_filter_list (list): the affiliations filter list of tuples (institution, country)
+                                 with default value set to None. 
         
     Returns: 
         None.
         
     Note:
-        The globals 'CONCATENATED_XLSX', 'DEDUPLICATED_XLSX', 'DIC_OUTDIR_PARSING' and 'FOLDER_NAMES' are used.
+        The globals 'COL_NAMES', 'CONCATENATED_XLSX', 'DEDUPLICATED_XLSX' and 'DIC_OUTDIR_PARSING' 
+        are imported from 'BiblioSpecificGlobals' module of 'BiblioAnalysis_Utils' package.
+        The function 'extend_author_institutions' is imported from 'BiblioParsingInstitutions' module 
+        of 'BiblioAnalysis_Utils' package.
                                   
     '''
     
@@ -29,8 +35,10 @@ def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None, ver
     import pandas as pd
 
     # Local imports
-    from BiblioAnalysis_Utils.BiblioParsingUtils import extend_author_institutions
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import extend_author_institutions
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import NORM_JOURNAL_COLUMN_LABEL
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import CONCATENATED_XLSX
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DEDUPLICATED_XLSX
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
@@ -52,8 +60,7 @@ def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None, ver
     # of the first corpus with the one of the second corpus 
     for file in files_list: 
         _concatenate_dat(file, path_scopus_parsing, path_wos_parsing, path_concat_parsing)
-
-        print(f'\nParsing files successfully concatenated and saved in:\n{path_concat_parsing}')
+    print(f'\nParsing files successfully concatenated and saved in:\n{path_concat_parsing}')
     
     # Setting the secondary institutions
     if inst_filter_list: 
@@ -74,7 +81,7 @@ def parsing_concatenate_deduplicate(useful_path_list, inst_filter_list=None, ver
     print(f'\nDeduplicated articles list file successfully saved as EXCEL file in: \n{path_rational_parsing}')    
       
     # Dropping the temporarily created column of normalized journal names in the deduplicated articles dataframe
-    df_articles_dedup = df_articles_dedup.drop([norm_journal_alias], axis = 1)
+    df_articles_dedup = df_articles_dedup.drop([NORM_JOURNAL_COLUMN_LABEL, norm_journal_alias], axis = 1)
     
     # Saving deduplicated articles list to .dat file  
     df_articles_dedup.to_csv(path_rational_parsing / Path(articles_dat_alias),
@@ -135,6 +142,12 @@ def _concatenate_dat(filename, path_first_corpus, path_second_corpus, path_conca
                                    for the second corpus.
         path_concat_result (path): path of the folder where the concatenated .dat file will be saved 
                             with the name "filename".
+                            
+    Returns: 
+        None.
+        
+    Note:
+        The global 'COL_NAMES' are imported from 'BiblioSpecificGlobals' module of 'BiblioAnalysis_Utils' package.
     
     '''
     # Standard libraries import
@@ -181,8 +194,9 @@ def _deduplicate_articles(path_in):
                 and a list of the duplicate indices.
         
     Notes:
-       The globals `BOLD_TEXT`, `LIGHT_TEXT`, `COL_NAMES`, `DIC_OUTDIR_PARSING`, 
-       `LENGTH_THRESHOLD`, `SIMILARITY_THRESHOLD` and `UNKNOWN` are used.
+       The globals `BOLD_TEXT` and `LIGHT_TEXT` are imported from 'BiblioGeneralGlobals' module of 'BiblioAnalysis_Utils' package. 
+       The globals `COL_NAMES`, `DIC_OUTDIR_PARSING`, `LENGTH_THRESHOLD`, `SIMILARITY_THRESHOLD` and `UNKNOWN` 
+       are imported from 'BiblioSpecificGlobals' module of 'BiblioAnalysis_Utils' package.
     
     '''
     # Standard library imports
@@ -196,7 +210,9 @@ def _deduplicate_articles(path_in):
     # Local imports
     from BiblioAnalysis_Utils.BiblioGeneralGlobals import BOLD_TEXT
     from BiblioAnalysis_Utils.BiblioGeneralGlobals import LIGHT_TEXT
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import NORM_JOURNAL_COLUMN_LABEL
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import LENGTH_THRESHOLD
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SIMILARITY_THRESHOLD
@@ -216,13 +232,14 @@ def _deduplicate_articles(path_in):
     light_text = LIGHT_TEXT
     
     # Defining aliases for column names of the articles file (.dat)
-    pub_id_alias = COL_NAMES['pub_id']
-    author_alias = COL_NAMES['articles'][1]
-    journal_alias = COL_NAMES['articles'][3]    
-    doi_alias = COL_NAMES['articles'][6]
+    pub_id_alias   = COL_NAMES['pub_id']
+    author_alias   = COL_NAMES['articles'][1]
+    #journal_alias  = COL_NAMES['articles'][3]
+    journal_alias  = NORM_JOURNAL_COLUMN_LABEL    #############################################################
+    doi_alias      = COL_NAMES['articles'][6]
     doc_type_alias = COL_NAMES['articles'][7]
-    title_alias = COL_NAMES['articles'][9]
-    issn_alias = COL_NAMES['articles'][10]
+    title_alias    = COL_NAMES['articles'][9]
+    issn_alias     = COL_NAMES['articles'][10]
     
     # Setting the name of a temporal column of titles in lower case 
     # to be added to working dataframes for case unsensitive dropping of duplicates
@@ -336,10 +353,19 @@ def _deduplicate_dat(file_name, pub_id_to_drop, path_in, path_out ):
     
     Args : 
        file_name (str): The name of the file among the '.dat' files issued from concatenation of parsing files 
-                        of corpuses
+                        of corpuses.
+       pub_id_to_drop (list): The list of articles IDs which lines should be dropped from the '.dat' files.
+       path_in (path): path of the file file_name.
+       path_out (path): path where the modified file file_name is saved.               
         
     Returns :
-        Nothing, but saves documents in path'''
+        None
+        
+    Notes:
+       The globals `COL_NAMES` and `DIC_OUTDIR_PARSING` from 'BiblioSpecificGlobals' module 
+       of 'BiblioAnalysis_Utils' package are used.
+       
+    '''
     
     # 3rd party imports   
     import pandas as pd

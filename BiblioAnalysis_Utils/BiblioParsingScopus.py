@@ -1,16 +1,24 @@
-__all__ = ['biblio_parser_scopus']
+__all__ = ['biblio_parser_scopus','read_database_scopus']
 
-# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals: ACCENT_CHANGE
-# Globals used from BiblioAnalysis_Utils.BiblioSpecificGlobals: CHANGE, DIC_OUTDIR_PARSING, DIC_DOCTYPE,
+# Globals used from BiblioAnalysis_Utils.BiblioGeneralGlobals:  DASHES_CHANGE, LANG_CHAR_CHANGE, PONCT_CHANGE
+# Globals used from BiblioAnalysis_Utils.BiblioSpecificGlobals: COL_NAMES, COLUMN_LABEL_SCOPUS,
+#                                                               DIC_OUTDIR_PARSING, DIC_DOCTYPE,
 #                                                               RE_REF_AUTHOR_SCOPUS, RE_REF_JOURNAL_SCOPUS,
 #                                                               RE_REF_PAGE_SCOPUS, RE_REF_VOL_SCOPUS,
-#                                                               RE_REF_YEAR_SCOPUS, RE_SUB, SCOPUS
-#                                                               SCOPUS_CAT_CODES, SCOPUS_JOURNALS_ISSN_CAT,
-#                                                               UNKNOWN, USECOLS_SCOPUS
+#                                                               RE_REF_YEAR_SCOPUS, RE_SUB, RE_SUB_FIRST,SCOPUS
+#                                                               SCOPUS, SCOPUS_CAT_CODES, SCOPUS_JOURNALS_ISSN_CAT,
+#                                                               SYMBOL, UNKNOWN, USECOLS_SCOPUS
 
 
-# Functions used from BiblioAnalysis_Utils.BiblioParsingUtils: build_title_keywords, build_institutions_dic
-#                                                              country_normalization, normalize_journal_names, name_normalizer 
+# Functions used from BiblioAnalysis_Utils.BiblioParsingUtils: build_title_keywords, 
+#                                                              check_and_drop_columns, country_normalization, 
+#                                                              normalize_journal_names, name_normalizer, 
+#                                                              remove_special_symbol 
+
+# Functions used from BiblioAnalysis_Utils.BiblioParsingInstitutions: address_inst_full_list, build_institutions_dic
+
+                                                              
+
 
 def _build_authors_scopus(df_corpus):
     
@@ -36,6 +44,7 @@ def _build_authors_scopus(df_corpus):
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
         
@@ -90,6 +99,7 @@ def _build_keywords_scopus(df_corpus,dic_failed):
     Returns:
         The dataframe df_keyword
     '''
+    # To Do: Check the use of UNKNOWN versus '"null"'
     
     # Standard library imports
     from collections import namedtuple
@@ -102,18 +112,17 @@ def _build_keywords_scopus(df_corpus,dic_failed):
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import build_title_keywords
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
-    
-    COL_NAMES = {}
-    COL_NAMES['keywords'] = ['Pub_id', 'Keyword']
 
     key_word = namedtuple('key_word',COL_NAMES['keywords'])
     
     pub_id_alias = COL_NAMES['keywords'][0]
-    type_alias = COL_NAMES['keywords'][1]
     keyword_alias = COL_NAMES['keywords'][1]
+    title_alias = COL_NAMES['temp_col'][2]
+    kept_tokens_alias = COL_NAMES['temp_col'][4]
     
     list_keyword_AK = []
     df_AK = df_corpus[COLUMN_LABEL_SCOPUS['author_keywords']].fillna('')
@@ -136,10 +145,10 @@ def _build_keywords_scopus(df_corpus,dic_failed):
             
     list_keyword_TK = []
     df_title = pd.DataFrame(df_corpus[COLUMN_LABEL_SCOPUS['title']].fillna(''))
-    df_title.columns = ['Title']  # To be coherent with the convention of function build_title_keywords          # To check
+    df_title.columns = [title_alias]  # To be coherent with the convention of function build_title_keywords 
     df_TK,list_of_words_occurrences = build_title_keywords(df_title)
     for pub_id in df_TK.index:
-        for token in df_TK.loc[pub_id,'kept_tokens']:
+        for token in df_TK.loc[pub_id,kept_tokens_alias]:
             token = token.strip()
             list_keyword_TK.append(key_word(pub_id,
                                          token if token != 'null' else '”null”'))
@@ -199,8 +208,10 @@ def _build_addresses_countries_institutions_scopus(df_corpus,dic_failed):
         The dataframes df_address, df_country, df_institution.
         
     Notes:
-        The globals 'ACCENT_CHANGE', 'COL_NAMES', 'COLUMN_LABEL_SCOPUS', 'RE_SUB' and 'UNKNOWN' are used.
-        The function `country_normalization`is used from `BiblioAnalysis_utils` package.
+        The globals 'COL_NAMES', 'COLUMN_LABEL_SCOPUS', 'RE_SUB', 'RE_SUB_FIRST' and 'UNKNOWN' 
+        are used from `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils` package.
+        The functions `remove_special_symbol` and `country_normalization` are used 
+        from `BiblioParsingUtils` of `BiblioAnalysis_utils` package.
          
     '''
     
@@ -213,11 +224,13 @@ def _build_addresses_countries_institutions_scopus(df_corpus,dic_failed):
     import pandas as pd
     
     # Local imports
+    from BiblioAnalysis_Utils.BiblioParsingUtils import remove_special_symbol
     from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import ACCENT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB_FIRST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
 
     address = namedtuple('address',COL_NAMES['address'] )
@@ -240,12 +253,13 @@ def _build_addresses_countries_institutions_scopus(df_corpus,dic_failed):
         if list_affiliation:
             for idx_address, address_pub in enumerate(list_affiliation):
                 
-                address_pub = address_pub.translate(ACCENT_CHANGE) # Translate accentuated characters using global ACCENT_CHANGE 
+                address_pub = remove_special_symbol(address_pub, only_ascii=True, strip=True)
                 list_addresses.append(address(pub_id,
                                               idx_address,
                                               address_pub))
 
                 institution = address_pub.split(',')[0]
+                institution = re.sub(RE_SUB_FIRST,'University' + ', ',institution)
                 institution = re.sub(RE_SUB,'University'+' ', institution)
                 list_institutions.append(ref_institution(pub_id,
                                                          idx_address,
@@ -272,30 +286,27 @@ def _build_addresses_countries_institutions_scopus(df_corpus,dic_failed):
             list_countries.append(country(pub_id,
                                           0,
                                           ''))
-            
 
+    # Building a clean addresses dataframe and accordingly updating the parsing success rate dict         
     df_address = pd.DataFrame.from_dict({label:[s[idx] for s in list_addresses] 
-                                         for idx,label in enumerate(COL_NAMES['address'])})
-
-    df_country = pd.DataFrame.from_dict({label:[s[idx] for s in list_countries] 
-                                         for idx,label in enumerate(COL_NAMES['country'])})
-
-    df_institution = pd.DataFrame.from_dict({label:[s[idx] for s in list_institutions] 
-                                             for idx,label in enumerate(COL_NAMES['institution'])})
-    
+                                         for idx,label in enumerate(COL_NAMES['address'])})   
     list_id = df_address[df_address[address_alias] == ''][pub_id_alias].values
     dic_failed[address_alias] = {'success (%)':100*(1-len(list_id)/len(df_corpus)),
-                                 pub_id_alias:[int(x) for x in list(list_id)]}
-    
+                                 pub_id_alias:[int(x) for x in list(list_id)]}    
     df_address = df_address[df_address[address_alias] != '']
-    
-    
+
+    # Building a clean countries dataframe and accordingly updating the parsing success rate dict
+    df_country = pd.DataFrame.from_dict({label:[s[idx] for s in list_countries] 
+                                     for idx,label in enumerate(COL_NAMES['country'])})
     list_id = df_country[df_country[country_alias] == ''][pub_id_alias].values
     list_id = list(set(list_id))
     dic_failed[country_alias] = {'success (%)':100*(1-len(list_id)/len(df_corpus)),
                                  pub_id_alias:[int(x) for x in list(list_id)]}
     df_country = df_country[df_country[country_alias] != '']
     
+    # Building a clean institutions dataframe and accordingly updating the parsing success rate dict
+    df_institution = pd.DataFrame.from_dict({label:[s[idx] for s in list_institutions] 
+                                             for idx,label in enumerate(COL_NAMES['institution'])})    
     list_id = df_institution[df_institution[institution_alias] == ''][pub_id_alias].values
     dic_failed[institution_alias] = {'success (%)':100*(1-len(list_id)/len(df_corpus)),
                                      pub_id_alias:[int(x) for x in list(list_id)]}
@@ -376,8 +387,12 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
         The dataframe df_addr_country_inst.
         
     Notes:
-        The globals 'ACCENT_CHANGE', 'COL_NAMES', 'COLUMN_LABEL_SCOPUS', 'RE_SUB' and 'UNKNOWN' are used.
-        The functions `build_institutions_dic`and `country_normalization`is used from `BiblioAnalysis_utils` package.
+        The globals 'COL_NAMES', 'COLUMN_LABEL_SCOPUS', 'RE_SUB', 'RE_SUB_FIRST' and 'SYMBOL' are used 
+        from `BiblioSpecificGlobals` module of `BiblioAnalysis_Utils` package.
+        The functions `remove_special_symbol`, and `country_normalization` are imported 
+        from `BiblioParsingUtils` module of `BiblioAnalysis_utils` package.
+        The functions  `address_inst_full_list` and `build_institutions_dic` are imported 
+        from `BiblioParsingInstitutions` module of `BiblioAnalysis_utils` package.
              
     '''
     
@@ -391,12 +406,16 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
     import pandas as pd
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioParsingUtils import build_institutions_dic
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import address_inst_full_list
+    from BiblioAnalysis_Utils.BiblioParsingInstitutions import build_institutions_dic
+    
+    from BiblioAnalysis_Utils.BiblioParsingUtils import remove_special_symbol
     from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import ACCENT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB_FIRST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SYMBOL
     
     addr_country_inst = namedtuple('address',COL_NAMES['auth_inst'][:-1])
@@ -404,27 +423,7 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
  
     template_inst = Template('[$symbol1]?($inst)[$symbol2].*($country)(?:$$|;)')
 
-    # Definition of internal functions
-    def _address_inst_full_list(address, inst_dic):
-
-        country_raw = address.split(',')[-1].strip()
-        country = country_normalization(country_raw)
-
-        inst_full_list = []        
-        for raw_inst, norm_inst in inst_dic.items():  
-            raw_inst_split = raw_inst.split()
-            template_inst = Template(r'\s+'.join([r'(\b$inst'+str(i)+r'\b)' for i in range(len(raw_inst_split))]))
-            dic = {'inst'+str(i):inst for i,inst in enumerate(raw_inst_split)}
-            re_inst  = re.compile(template_inst.substitute(dic), re.IGNORECASE)
-            if re_inst.findall(address):
-                inst_full_list.append(norm_inst + '_' + country)
-        if inst_full_list:
-            inst_full_list_str = ';'.join(inst_full_list)
-        else:
-            inst_full_list_str = address.split(',')[0] + '_' + country
-
-        return inst_full_list_str
-    
+    # Defining internal functions    
     def _address_inst_list(inst_filter_list,address):
         secondary_institutions = []
         for inst,country in inst_filter_list:
@@ -439,10 +438,12 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
                 secondary_institutions.append(0)
         return secondary_institutions
 
+    # Defining globals alias
     pub_id_alias = COL_NAMES['auth_inst'][0] 
     pub_idx_author_alias = COL_NAMES['auth_inst'][1]
     address_alias = COL_NAMES['auth_inst'][2]
-    institution_alias = COL_NAMES['auth_inst'][4]
+    norm_institution_alias = COL_NAMES['auth_inst'][4]
+    raw_institution_alias = COL_NAMES['auth_inst'][5]
     sec_institution_alias = COL_NAMES['auth_inst'][5]
 
     inst_dic = build_institutions_dic(rep_utils = None, dic_inst_filename = None)
@@ -466,24 +467,26 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
 
             author_list_addresses = ','.join(x.split(',')[2:])
             author_address_list_raw = []
-            for affiliation in list_affiliations:
-                if affiliation in author_list_addresses:
-                    affiliation = re.sub(RE_SUB,'University' + ' ',affiliation)
-                    affiliation = affiliation.translate(ACCENT_CHANGE) # Translate accentuated characters using global ACCENT_CHANGE 
-                    author_address_list_raw.append(affiliation)   
+            for affiliation_raw in list_affiliations:
+                if affiliation_raw in author_list_addresses:
+                    affiliation_raw = remove_special_symbol(affiliation_raw, only_ascii=True, strip=True)
+                    affiliation_raw = re.sub(RE_SUB_FIRST,'University' + ', ',affiliation_raw)
+                    affiliation = re.sub(RE_SUB,'University' + ' ',affiliation_raw)
+                    author_address_list_raw.append(affiliation) 
 
-            author_institutions = []
-            for address in author_address_list_raw:
-                author_country_raw = address.split(',')[-1].strip()
-                author_country = country_normalization(author_country_raw)
+                author_institutions = []
+                for address in author_address_list_raw:
+                    author_country_raw = address.split(',')[-1].strip()
+                    author_country = country_normalization(author_country_raw)
 
-                author_institutions = _address_inst_full_list(address, inst_dic)
+                    author_institutions_tup = address_inst_full_list(address, inst_dic)
 
-                list_addr_country_inst.append(addr_country_inst(pub_id,
-                                                          idx_author,
-                                                          address,
-                                                          author_country,                  
-                                                          author_institutions))
+                    list_addr_country_inst.append(addr_country_inst(pub_id,
+                                                                    idx_author,
+                                                                    address,
+                                                                    author_country,
+                                                                    author_institutions_tup.norm_inst_list,
+                                                                    author_institutions_tup.raw_inst_list,))
                 
     # Building the a first version of the returned dataframe with 'list_addr_country_inst'
     # with columns "COL_NAMES['auth_inst'][:-1]"                
@@ -510,7 +513,7 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
     df_addr_country_inst.sort_values(by=[pub_id_alias,pub_idx_author_alias], inplace=True)
     
     # Updating the dic_failed dict
-    list_id = df_addr_country_inst[df_addr_country_inst[institution_alias] == ''][pub_id_alias].values
+    list_id = df_addr_country_inst[df_addr_country_inst[norm_institution_alias] == ''][pub_id_alias].values
     dic_failed['authors_inst'] = {'success (%)':100*(1-len(list_id)/len(df_corpus)),
                                   pub_id_alias:[int(x) for x in list(list_id)]}
     
@@ -756,19 +759,25 @@ def _build_articles_scopus(df_corpus):
         The dataframe df_institution
         
     '''
+    #To Do: Doc string update
     
     # Standard library imports
     import re
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioGeneralGlobals import CHANGE
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import DASHES_CHANGE
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import LANG_CHAR_CHANGE
+    from BiblioAnalysis_Utils.BiblioGeneralGlobals import PONCT_CHANGE
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import NORM_JOURNAL_COLUMN_LABEL         #####################################
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_DOCTYPE
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
 
-    re_issn = re.compile(r'^[0-9]{8}|[0-9]{4}|[0-9]{3}X') # Use to normalize the ISSN to the
+    re_issn = re.compile(r'^[0-9]{8}|[0-9]{4}|[0-9]{3}X') # Used to normalize the ISSN to the
                                                           # form dddd-dddd or dddd-dddX used by wos
     
     def _convert_issn(text):        
@@ -794,15 +803,17 @@ def _build_articles_scopus(df_corpus):
         return doctype 
     
     def _treat_title(title):
-        title = title.translate(CHANGE)
+        title = title.translate(DASHES_CHANGE)
+        title = title.translate(LANG_CHAR_CHANGE)
+        title = title.translate(PONCT_CHANGE)
         return title
     
-    pub_id_alias = COL_NAMES['articles'][0]
-    author_alias = COL_NAMES['articles'][1]
-    year_alias = COL_NAMES['articles'][2]
+    pub_id_alias   = COL_NAMES['articles'][0]
+    author_alias   = COL_NAMES['articles'][1]
+    year_alias     = COL_NAMES['articles'][2]
     doc_type_alias = COL_NAMES['articles'][7]
-    title_alias = COL_NAMES['articles'][9]
-    issn_alias = COL_NAMES['articles'][-1]
+    title_alias    = COL_NAMES['articles'][9]
+    issn_alias     = COL_NAMES['articles'][-1]
     
     scopus_columns = [COLUMN_LABEL_SCOPUS['authors'],
                       COLUMN_LABEL_SCOPUS['year'],
@@ -813,7 +824,8 @@ def _build_articles_scopus(df_corpus):
                       COLUMN_LABEL_SCOPUS['document_type'],
                       COLUMN_LABEL_SCOPUS['language'],
                       COLUMN_LABEL_SCOPUS['title'],
-                      COLUMN_LABEL_SCOPUS['issn']]
+                      COLUMN_LABEL_SCOPUS['issn'],
+                      NORM_JOURNAL_COLUMN_LABEL]                                  ##########################
 
     df_article = df_corpus[scopus_columns].astype(str)
 
@@ -848,6 +860,7 @@ def _build_references_scopus(df_corpus):
     Returns:
         A dataframe df_keyword
     '''
+    #To Do: Doc string update
     
     # Standard library imports
     import re
@@ -858,6 +871,7 @@ def _build_references_scopus(df_corpus):
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioParsingUtils import name_normalizer
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_REF_AUTHOR_SCOPUS
@@ -928,8 +942,7 @@ def _build_references_scopus(df_corpus):
 
 def _check_affiliation_column_scopus(df):
     
-    '''
-    The `_check_affiliation_column_scopus` function checks the correcteness of the column affiliation of a df 
+    '''The `_check_affiliation_column_scopus` function checks the correcteness of the column affiliation of a df 
     read from a csv scopus file.
     A cell of the column affiliation should reads:
     address<0>, country<0>;...; address<i>, country<i>;...
@@ -938,11 +951,14 @@ def _check_affiliation_column_scopus(df):
     cell of the column, those items address<i>, country<i> uncorrectly formatted. When such an item is detected
     a warning message is printed.    
     '''
+    #To Do: Doc string update
+    
     # Standard library imports
     from colorama import Fore
     
     # Local imports
-    from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization 
+    from BiblioAnalysis_Utils.BiblioParsingUtils import country_normalization
+    
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_LABEL_SCOPUS
         
     def _valid_affiliation(row):
@@ -970,6 +986,52 @@ def _check_affiliation_column_scopus(df):
     return df
 
 
+def read_database_scopus(filename):
+    
+    '''The `read_database_scopus`function reads the raw scopus-database file `filename`,
+       checks columns and drops unuseful columns using the `check_and_drop_columns` function.
+       It checks the affilation column content using the `_check_affiliation_column_scopus` 
+       internal function. 
+       It replaces the unavailable items values by a string set in the global UNKNOW.
+       It normalizes the journal names using the `normalize_journal_names` function.
+       
+    Args:
+        filename (str): the full path of the scopus-database file. 
+        
+    Returns:
+        (dataframe): the cleaned corpus dataframe.
+        
+    Note:
+        The functions 'check_and_drop_columns' and 'normalize_journal_names' from `BiblioParsingUtils` module 
+        of `BiblioAnalysis_Utils`module are used.
+        The globals 'SCOPUS' and 'UNKNOWN' from `BiblioSpecificGlobals` module 
+        of `BiblioAnalysis_Utils`module are used.
+        
+    '''
+    # Standard library imports
+    from pathlib import Path
+    
+    # 3rd party imports
+    import numpy as np
+    import pandas as pd
+    
+    # Local imports
+    from BiblioAnalysis_Utils.BiblioParsingUtils import check_and_drop_columns
+    from BiblioAnalysis_Utils.BiblioParsingUtils import normalize_journal_names
+    
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_TYPE_SCOPUS
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS    
+    from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
+    
+    df = pd.read_csv(Path(filename), dtype = COLUMN_TYPE_SCOPUS)    
+    df = check_and_drop_columns(SCOPUS,df,filename)    
+    df = _check_affiliation_column_scopus(df)
+    df = df.replace(np.nan,UNKNOWN,regex=True)
+    df = normalize_journal_names(SCOPUS,df)
+        
+    return df
+
+
 def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter_list):
     
     '''Using the files xxxx.csv stored in the folder rawdata, the function biblio_parser_scopus
@@ -982,7 +1044,7 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
     |   |   |-- addresses.dat, articles.dat, authors.dat, countries.dat, database.dat  
     |   |   |-- institutions.dat, keywords.dat, references.dat, subjects.dat, subjects2.dat 
     
-    The columns USECOLS_SCOPUS of the tsv file xxxx.csv are read and the parsed using the 
+    The columns of the tsv file xxxx.csv are read and parsed using the 
     functions:
         _build_references_scopus which parses the column 'References'
         _build_authors_scopus which parses the column 'Authors'
@@ -997,6 +1059,7 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
             'Page start','DOI','Document Type','Language of Original Document','Title','ISSN'
 
     '''
+    #To Do: Doc string update
     
     # Standard library imports
     import json
@@ -1009,15 +1072,11 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
     
     # Local imports
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import COL_NAMES
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import COLUMN_TYPE_SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import DIC_OUTDIR_PARSING
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS_CAT_CODES
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SCOPUS_JOURNALS_ISSN_CAT
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import UNKNOWN
-    from BiblioAnalysis_Utils.BiblioSpecificGlobals import USECOLS_SCOPUS
-    from BiblioAnalysis_Utils.BiblioParsingUtils import check_and_drop_columns
-    from BiblioAnalysis_Utils.BiblioParsingUtils import normalize_journal_names
     
     pub_id_alias = COL_NAMES['keywords'][0]
     keyword_alias = COL_NAMES['keywords'][1]
@@ -1031,15 +1090,11 @@ def biblio_parser_scopus(in_dir_parsing, out_dir_parsing, rep_utils, inst_filter
     filename = list_data_base[0]
     
     # Setting the specific file paths for subjects ans sub-subjects assignement for scopus corpuses    
-    path_scopus_cat_codes = Path(__file__).parent / rep_utils / Path(SCOPUS_CAT_CODES)
-    path_scopus_journals_issn_cat = Path(__file__).parent / rep_utils / Path(SCOPUS_JOURNALS_ISSN_CAT)
+    path_scopus_cat_codes = Path(__file__).parent / Path(rep_utils) / Path(SCOPUS_CAT_CODES)
+    path_scopus_journals_issn_cat = Path(__file__).parent / Path(rep_utils) / Path(SCOPUS_JOURNALS_ISSN_CAT)
 
     # Reading and checking the corpus file
-    df_corpus = pd.read_csv(in_dir_parsing / Path(filename), dtype = COLUMN_TYPE_SCOPUS)     
-    df_corpus = check_and_drop_columns(SCOPUS,df_corpus,filename)    
-    df_corpus = _check_affiliation_column_scopus(df_corpus)
-    df_corpus = df_corpus.replace(np.nan,UNKNOWN,regex=True)
-    df_corpus = normalize_journal_names(SCOPUS,df_corpus)
+    df_corpus = read_database_scopus(filename)
 
     # Initializing the dic_failed dict for the parsing control
     dic_failed = {}
