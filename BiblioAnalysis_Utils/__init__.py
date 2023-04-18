@@ -1,4 +1,4 @@
-__version__ = '5.1.0'
+__version__ = '5.1.1'
 __author__ = 'BiblioAnalysis team'
 __license__ = 'MIT'
 
