@@ -56,7 +56,9 @@ def _build_authors_scopus(df_corpus):
     for pub_id,x in zip(df_corpus.index,
                         df_corpus[COLUMN_LABEL_SCOPUS['authors']]):
         idx_author = 0
-        for y in x.split(","):
+        authors_sep = ',' 
+        if ';' in x: authors_sep = ';'             # Change in scopus on 07/2023
+        for y in x.split(authors_sep):
             author = name_normalizer(y.replace('.',''))
             
             if author not in ['Dr','Pr','Dr ','Pr ']:
@@ -418,10 +420,9 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import RE_SUB_FIRST
     from BiblioAnalysis_Utils.BiblioSpecificGlobals import SYMBOL
     
-    addr_country_inst = namedtuple('address',COL_NAMES['auth_inst'][:-1])
-    author_address_tup = namedtuple('author_address','author address')
- 
-    template_inst = Template('[$symbol1]?($inst)[$symbol2].*($country)(?:$$|;)')
+    addr_country_inst  = namedtuple('address',COL_NAMES['auth_inst'][:-1])
+    author_address_tup = namedtuple('author_address','author address') 
+    template_inst      = Template('[$symbol1]?($inst)[$symbol2].*($country)(?:$$|;)')
 
     # Defining internal functions    
     def _address_inst_list(inst_filter_list,address):
@@ -439,20 +440,20 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
         return secondary_institutions
 
     # Defining globals alias
-    pub_id_alias = COL_NAMES['auth_inst'][0] 
-    pub_idx_author_alias = COL_NAMES['auth_inst'][1]
-    address_alias = COL_NAMES['auth_inst'][2]
+    pub_id_alias           = COL_NAMES['auth_inst'][0] 
+    pub_idx_author_alias   = COL_NAMES['auth_inst'][1]
+    address_alias          = COL_NAMES['auth_inst'][2]
     norm_institution_alias = COL_NAMES['auth_inst'][4]
-    raw_institution_alias = COL_NAMES['auth_inst'][5]
-    sec_institution_alias = COL_NAMES['auth_inst'][5]
+    raw_institution_alias  = COL_NAMES['auth_inst'][5]
+    sec_institution_alias  = COL_NAMES['auth_inst'][5]
 
     inst_dic = build_institutions_dic(rep_utils = None, dic_inst_filename = None)
     
     list_addr_country_inst = []
     
     for pub_id, affiliations, authors_affiliations in zip(df_corpus.index,
-                                                         df_corpus[COLUMN_LABEL_SCOPUS['affiliations']],
-                                                         df_corpus[COLUMN_LABEL_SCOPUS['authors_with_affiliations']]):
+                                                          df_corpus[COLUMN_LABEL_SCOPUS['affiliations']],
+                                                          df_corpus[COLUMN_LABEL_SCOPUS['authors_with_affiliations']]):
         
         idx_author, last_author = -1, '' # Initialization for the author and address counter
         
@@ -460,12 +461,16 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
         list_authors_affiliations = authors_affiliations.split(';')
         
         for x in list_authors_affiliations:
-            author = (','.join(x.split(',')[0:2])).strip()
+            auth_item_nbr = 2
+            if "." in x.split(',')[0]: auth_item_nbr = 1              # Change in scopus on 07/2023
+            author = (','.join(x.split(',')[0:auth_item_nbr])).strip()
+
             if last_author != author:
                 idx_author += 1
             last_author = author
 
-            author_list_addresses = ','.join(x.split(',')[2:])
+            author_list_addresses = ','.join(x.split(',')[auth_item_nbr:])
+
             author_address_list_raw = []
             for affiliation_raw in list_affiliations:
                 if affiliation_raw in author_list_addresses:
@@ -502,7 +507,7 @@ def _build_authors_countries_institutions_scopus(df_corpus, dic_failed, inst_fil
         col_names = [f'{x[0]}_{x[1]}' for x in inst_filter_list]
         
         df_addr_country_inst_split = pd.DataFrame(df_addr_country_inst['Secondary_institutions'].sort_index().to_list(),
-                                              columns=col_names)
+                                                  columns=col_names)
 
         df_addr_country_inst = pd.concat([df_addr_country_inst, df_addr_country_inst_split], axis=1)
 
@@ -793,7 +798,10 @@ def _build_articles_scopus(df_corpus):
             return 0
         
     def _treat_author(list_authors):
-        first_author = name_normalizer(list_authors.split(',')[0]) # we pick the first author
+        authors_sep = ',' 
+        if ';' in list_authors: authors_sep = ';'             # Change in scopus on 07/2023
+        raw_first_author = list_authors.split(authors_sep)[0] # we pick the first author
+        first_author = name_normalizer(raw_first_author) 
         return first_author
     
     def _treat_doctype(doctype):
